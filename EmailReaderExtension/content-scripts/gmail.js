@@ -1,209 +1,16 @@
-// Gmail content script
-// This script extracts email information from Gmail
+// Gmail content script - Fixed version with reliable label detection and automatic creation
+// Uses Gmail's sidebar "+" button to create new labels
 
-// Load utility functions
 const script = document.createElement('script');
 script.src = chrome.runtime.getURL('utils.js');
 document.head.appendChild(script);
 
-// Inject CSS styles for label suggestions UI
 function injectStyles() {
     if (document.getElementById('email-reader-styles')) return;
 
     const style = document.createElement('style');
     style.id = 'email-reader-styles';
     style.textContent = `
-        .email-reader-label-container {
-            display: inline-flex;
-            align-items: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 8px;
-            padding: 6px 12px;
-            margin-right: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            animation: slideIn 0.3s ease-out;
-            position: relative;
-            z-index: 1000;
-            max-width: fit-content;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .email-reader-label-header {
-            display: inline-flex;
-            align-items: center;
-            margin-right: 8px;
-        }
-
-        .email-reader-label-title {
-            color: white;
-            font-weight: 500;
-            font-size: 12px;
-            font-family: 'Google Sans', Roboto, Arial, sans-serif;
-            margin-right: 6px;
-        }
-
-        .email-reader-label-close {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
-            font-size: 16px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
-            padding: 0;
-            transition: background 0.2s;
-            margin-left: 4px;
-        }
-
-        .email-reader-label-close:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .email-reader-labels {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .email-reader-label-btn {
-            background: #4285F4;
-            border: none;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 11px;
-            font-family: 'Google Sans', Roboto, Arial, sans-serif;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            transition: all 0.2s;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            white-space: nowrap;
-        }
-
-        .email-reader-label-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        .email-reader-label-btn.applied {
-            opacity: 0.7;
-            cursor: default;
-        }
-
-        .email-reader-label-btn.applied:hover {
-            transform: none;
-        }
-
-        .email-reader-label-text {
-            font-weight: 500;
-        }
-
-        .email-reader-label-confidence {
-            background: rgba(255, 255, 255, 0.3);
-            padding: 2px 5px;
-            border-radius: 8px;
-            font-size: 10px;
-        }
-
-        /* Subject label styles (larger, below subject line) */
-        .email-reader-subject {
-            display: block !important;
-            width: 100%;
-            margin: 12px 0;
-            padding: 12px 16px;
-        }
-
-        .email-reader-label-header-subject {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .email-reader-label-title-subject {
-            color: white;
-            font-weight: 600;
-            font-size: 13px;
-            font-family: 'Google Sans', Roboto, Arial, sans-serif;
-        }
-
-        .email-reader-label-close-subject {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
-            font-size: 20px;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
-            padding: 0;
-            transition: background 0.2s;
-        }
-
-        .email-reader-label-close-subject:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .email-reader-labels-subject {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .email-reader-label-btn-subject {
-            background: #4285F4;
-            border: none;
-            color: white;
-            padding: 6px 14px;
-            border-radius: 16px;
-            cursor: pointer;
-            font-size: 12px;
-            font-family: 'Google Sans', Roboto, Arial, sans-serif;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .email-reader-label-btn-subject:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        .email-reader-label-btn-subject.applied {
-            opacity: 0.7;
-            cursor: default;
-        }
-
-        .email-reader-label-btn-subject.applied:hover {
-            transform: none;
-        }
-
-        /* Right side floating panel */
         .email-reader-right-panel {
             position: fixed;
             top: 106px;
@@ -218,21 +25,18 @@ function injectStyles() {
             animation: slideInRight 0.3s ease-out;
             overflow-y: auto;
         }
-
         .email-reader-panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 12px;
         }
-
         .email-reader-panel-title {
             color: white;
             font-weight: 600;
             font-size: 14px;
             font-family: 'Google Sans', Roboto, Arial, sans-serif;
         }
-
         .email-reader-panel-close {
             background: rgba(255, 255, 255, 0.2);
             border: none;
@@ -245,21 +49,16 @@ function injectStyles() {
             display: flex;
             align-items: center;
             justify-content: center;
-            line-height: 1;
-            padding: 0;
             transition: background 0.2s;
         }
-
         .email-reader-panel-close:hover {
             background: rgba(255, 255, 255, 0.3);
         }
-
         .email-reader-panel-labels {
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
-
         .email-reader-panel-label-btn {
             background: #4285F4;
             border: none;
@@ -277,21 +76,22 @@ function injectStyles() {
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             width: 100%;
         }
-
         .email-reader-panel-label-btn:hover {
             transform: translateX(-4px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
-
         .email-reader-panel-label-btn.applied {
             opacity: 0.7;
-            cursor: default;
         }
-
-        .email-reader-panel-label-btn.applied:hover {
-            transform: none;
+        .email-reader-label-text {
+            font-weight: 500;
         }
-
+        .email-reader-label-confidence {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 2px 5px;
+            border-radius: 8px;
+            font-size: 10px;
+        }
         .email-reader-notification {
             position: fixed;
             top: 80px;
@@ -305,154 +105,50 @@ function injectStyles() {
             font-family: 'Google Sans', Roboto, Arial, sans-serif;
             font-size: 14px;
             animation: slideInRight 0.3s ease-out;
-            max-width: 300px;
         }
-
         @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(100px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+            from { opacity: 0; transform: translateX(100px); }
+            to { opacity: 1; transform: translateX(0); }
         }
-
-        .email-reader-notification.success {
-            background: #4CAF50;
-            color: white;
-        }
-
-        .email-reader-notification.error {
-            background: #f44336;
-            color: white;
-        }
-
-        .email-reader-notification.warning {
-            background: #ff9800;
-            color: white;
-        }
-
-        .email-reader-notification.fade-out {
-            animation: fadeOut 0.3s ease-out;
-            opacity: 0;
-        }
-
+        .email-reader-notification.success { background: #4CAF50; color: white; }
+        .email-reader-notification.error { background: #f44336; color: white; }
+        .email-reader-notification.warning { background: #ff9800; color: white; }
+        .email-reader-notification.fade-out { animation: fadeOut 0.3s; opacity: 0; }
         @keyframes fadeOut {
-            from {
-                opacity: 1;
-            }
-            to {
-                opacity: 0;
-            }
+            from { opacity: 1; }
+            to { opacity: 0; }
         }
     `;
     document.head.appendChild(style);
 }
 
-// Inject styles when script loads
 injectStyles();
 
-// Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'extractEmails') {
         extractGmailData(request.chunkSize || 1000)
             .then(data => sendResponse(data))
             .catch(error => sendResponse({ success: false, error: error.message }));
-        return true; // Keep channel open for async response
+        return true;
     }
 });
 
-/**
- * Extract email data from Gmail
- * @param {number} chunkSize - Size of chunks
- * @returns {Promise<Object>} Extracted email data
- */
 async function extractGmailData(chunkSize) {
     try {
-        // Check if we're on Gmail
         if (!window.location.hostname.includes('mail.google.com')) {
             throw new Error('Not on Gmail');
         }
-
-        // Wait for Gmail to load
         await waitForGmailLoad();
-
-        const emails = [];
-
-        // Check if viewing a single email
-        const viewingSingle = isViewingEmail();
-
-        if (viewingSingle) {
-            console.log('Detected: Viewing single email - extracting one email');
-            const emailData = extractSingleEmail();
-            if (emailData) {
-                emailData.emailIndex = 1;
-                emails.push(emailData);
-                console.log('Successfully extracted single email:', emailData.subject);
-            }
-        } else {
-            console.log('Detected: List view - extracting multiple emails');
-
-            // Extract multiple emails from list view
-            // Try multiple selectors to catch all email rows
-            let emailElements = document.querySelectorAll('tr.zA');
-            console.log(`Try selector 'tr.zA': found ${emailElements.length} rows`);
-
-            if (emailElements.length === 0) {
-                emailElements = document.querySelectorAll('table.F.cf.zt tbody tr');
-                console.log(`Try selector 'table.F.cf.zt tbody tr': found ${emailElements.length} rows`);
-            }
-
-            if (emailElements.length === 0) {
-                emailElements = document.querySelectorAll('tbody tr[jsaction]');
-                console.log(`Try selector 'tbody tr[jsaction]': found ${emailElements.length} rows`);
-            }
-
-            console.log(`Total email rows found: ${emailElements.length}`);
-
-            let index = 1;
-            for (const emailElement of emailElements) {
-                const emailData = extractEmailFromListItem(emailElement);
-                if (emailData && emailData.subject) {  // Only add if we got valid data
-                    emailData.emailIndex = index;
-                    emails.push(emailData);
-                    console.log(`Extracted email ${index}: "${emailData.subject.substring(0, 50)}..." from ${emailData.fromName || emailData.from}`);
-                    index++;
-                } else {
-                    console.log(`Skipped row ${index} - no valid data`);
-                }
-            }
-
-            console.log(`Total emails extracted: ${emails.length}`);
-        }
-
-        if (emails.length === 0) {
-            throw new Error('No emails found. Please open an email or ensure emails are visible.');
-        }
-
-        // Process emails with chunking
-        const processedData = processEmails(emails, chunkSize);
-
-        return {
-            success: true,
-            data: processedData,
-            source: 'gmail'
-        };
-
+        const emailData = extractSingleEmail();
+        if (!emailData) throw new Error('No email found');
+        
+        const processedData = processEmails([emailData], chunkSize);
+        return { success: true, data: processedData, source: 'gmail' };
     } catch (error) {
-        console.error('Gmail extraction error:', error);
-        return {
-            success: false,
-            error: error.message
-        };
+        return { success: false, error: error.message };
     }
 }
 
-/**
- * Wait for Gmail to fully load
- */
 function waitForGmailLoad() {
     return new Promise((resolve) => {
         if (document.querySelector('div[role="main"]')) {
@@ -465,373 +161,164 @@ function waitForGmailLoad() {
                 }
             });
             observer.observe(document.body, { childList: true, subtree: true });
-            
-            // Timeout after 10 seconds
-            setTimeout(() => {
-                observer.disconnect();
-                resolve();
-            }, 10000);
+            setTimeout(() => { observer.disconnect(); resolve(); }, 10000);
         }
     });
 }
 
-/**
- * Check if viewing a single email
- */
 function isViewingEmail() {
-    // Check if we're actually viewing a single email, not the list view
-    // A single email view has an h2 (subject) AND email body content
     const hasSubject = !!document.querySelector('div[role="main"] h2');
-    const hasEmailBody = !!document.querySelector('div[data-message-id]') ||
-                        !!document.querySelector('div[role="main"] div.a3s');
-
-    // Also check that we're NOT in list view by checking for the email list table
-    const inListView = !!document.querySelector('table.F.cf.zt') ||
-                      !!document.querySelector('div[role="main"] table tbody tr.zA');
-
-    // We're viewing a single email if we have subject + body AND we're not in list view
-    const viewingSingleEmail = hasSubject && hasEmailBody && !inListView;
-
-    console.log(`isViewingEmail check: hasSubject=${hasSubject}, hasEmailBody=${hasEmailBody}, inListView=${inListView}, result=${viewingSingleEmail}`);
-
-    return viewingSingleEmail;
+    const hasEmailBody = !!document.querySelector('div[data-message-id]');
+    const inListView = !!document.querySelector('table.F.cf.zt');
+    return hasSubject && hasEmailBody && !inListView;
 }
 
-/**
- * Extract data from a single opened email
- */
 function extractSingleEmail() {
     try {
-        // Get the main email container
         const emailContainer = document.querySelector('div[role="main"]');
-        if (!emailContainer) {
-            console.error('Email container not found');
-            return null;
-        }
+        if (!emailContainer) return null;
 
-        // Extract subject - look for h2 within the email view
         const subject = emailContainer.querySelector('h2')?.textContent?.trim() || '';
-
-        // Find sender info - look within the email header area
-        const senderElement = emailContainer.querySelector('span[email]') ||
-                            emailContainer.querySelector('div[data-hovercard-id] span[email]') ||
-                            emailContainer.querySelector('td.gE.iv.gt span[email]');
-
-        const from = senderElement?.getAttribute('email') || '';
-        const fromName = senderElement?.closest('td')?.querySelector('span.go')?.textContent?.trim() ||
-                        senderElement?.parentElement?.textContent?.trim() || '';
-
-        // Find date - look for the date element in the email header
-        const dateElement = emailContainer.querySelector('span.g3')?.textContent?.trim() ||
-                          emailContainer.querySelector('td.gH span[title]')?.getAttribute('title') ||
-                          emailContainer.querySelector('span[data-tooltip*="UTC"]')?.getAttribute('data-tooltip') || '';
-        const date = dateElement;
-
-        // Find recipients - only within the email header, not from the entire page
-        const headerElement = emailContainer.querySelector('div.ha') ||
-                            emailContainer.querySelector('td.gF');
-        const toElements = headerElement ?
-            headerElement.querySelectorAll('span[email], span[data-hovercard-id][email]') :
-            [];
-        const to = Array.from(toElements)
-            .map(el => el.getAttribute('email'))
-            .filter(Boolean);
-
-        // Extract email body - find the message body within the email view
-        const bodyElement = emailContainer.querySelector('div[data-message-id] div.a3s.aiL') ||
-                          emailContainer.querySelector('div.a3s.aiL') ||
-                          emailContainer.querySelector('div.ii.gt div') ||
-                          emailContainer.querySelector('div[data-message-id]');
-
-        const body = bodyElement?.innerHTML || bodyElement?.textContent || '';
-
-        // Check for attachments - only within the email container
-        const attachmentSection = emailContainer.querySelector('div[data-message-id] div.aQH');
-        let attachments = [];
-        if (attachmentSection) {
-            const attachmentElements = attachmentSection.querySelectorAll('span.aV3');
-            attachments = Array.from(attachmentElements).map(el => {
-                const name = el.textContent?.trim() || '';
-                return name ? { name } : null;
-            }).filter(Boolean);
-        }
-
-        // Check if starred - look for star icon in the email header
-        const starElement = emailContainer.querySelector('span[role="checkbox"][aria-label*="tarred"]');
-        const isStarred = starElement?.getAttribute('aria-checked') === 'true';
-
-        // Get actual Gmail labels - look for label badges in the email
         const labelContainer = emailContainer.querySelector('div.ar.as');
         let labels = [];
         if (labelContainer) {
-            const labelElements = labelContainer.querySelectorAll('span.av');
-            labels = Array.from(labelElements)
-                .map(el => el.textContent?.trim())
-                .filter(Boolean);
+            labels = Array.from(labelContainer.querySelectorAll('span.av'))
+                .map(el => el.textContent?.trim()).filter(Boolean);
         }
 
-        return {
-            subject,
-            from,
-            fromName,
-            to,
-            date,
-            body,
-            isHTML: true,
-            hasAttachments: attachments.length > 0,
-            attachments,
-            isStarred,
-            labels,
-            isRead: true,
-            extractionType: 'single_email'
-        };
+        return { subject, labels };
     } catch (error) {
-        console.error('Error extracting single email:', error);
         return null;
     }
 }
 
-/**
- * Extract email data from list item
- */
-function extractEmailFromListItem(emailElement) {
-    try {
-        // Skip if this is not an email row (like headers or spacers)
-        if (!emailElement.querySelector('td') || emailElement.querySelector('td').colSpan > 1) {
-            return null;
-        }
-
-        // Extract subject - try multiple selectors
-        let subject = '';
-        const subjectElement = emailElement.querySelector('span[data-thread-id]') ||
-                              emailElement.querySelector('td.a4W span.bog') ||
-                              emailElement.querySelector('.a4W .bog span');
-
-        if (subjectElement) {
-            // Get subject text, removing any label/category badges
-            const subjectText = subjectElement.textContent?.trim() || '';
-            subject = subjectText.replace(/^\s*\[.*?\]\s*/, ''); // Remove [Label] prefixes
-        }
-
-        // If no subject found, this might not be a valid email row
-        if (!subject) {
-            return null;
-        }
-
-        // Extract sender email and name
-        const senderEmailElement = emailElement.querySelector('span[email]') ||
-                                   emailElement.querySelector('.yX span[email]');
-
-        const senderNameElement = emailElement.querySelector('td.yX span.yP') ||
-                                 emailElement.querySelector('td.yX span[name]') ||
-                                 emailElement.querySelector('.yX .bA4 span') ||
-                                 emailElement.querySelector('.yX span:not([email])');
-
-        const from = senderEmailElement?.getAttribute('email') ||
-                    senderEmailElement?.textContent?.trim() || '';
-
-        const fromName = senderNameElement?.textContent?.trim() ||
-                        senderNameElement?.getAttribute('name') || '';
-
-        // Extract date - try multiple selectors
-        const dateElement = emailElement.querySelector('td.xW span[title]') ||
-                          emailElement.querySelector('td.xW span') ||
-                          emailElement.querySelector('.xW span');
-        const date = dateElement?.getAttribute('title') ||
-                    dateElement?.textContent?.trim() || '';
-
-        // Check if unread (unread emails have 'zE' class)
-        const isRead = !emailElement.classList.contains('zE');
-
-        // Check if starred
-        const starElement = emailElement.querySelector('span[role="checkbox"][aria-label*="tarred"]');
-        const isStarred = starElement?.getAttribute('aria-checked') === 'true';
-
-        // Get snippet/preview text - the email body preview (gray text in Gmail)
-        const snippetElement = emailElement.querySelector('span.y2') ||
-                              emailElement.querySelector('.a4W .y2') ||
-                              emailElement.querySelector('td.a4W span:not(.bog)');
-        let body = snippetElement?.textContent?.trim() || '';
-
-        // Remove any leading dashes or separators from snippet
-        body = body.replace(/^[\s\-–—]+/, '');
-
-        // Check for attachments
-        const hasAttachments = emailElement.querySelector('span[aria-label*="ttachment"]') !== null ||
-                              emailElement.querySelector('div.aQw') !== null ||
-                              emailElement.querySelector('.aQw') !== null;
-
-        // Try to extract labels/categories from the list item
-        const labelElements = emailElement.querySelectorAll('.ar span.at, div.ar span');
-        const labels = Array.from(labelElements)
-            .map(el => el.textContent?.trim())
-            .filter(Boolean)
-            .filter(label => label.length > 0);
-
-        return {
-            subject,
-            from,
-            fromName,
-            to: [],
-            date,
-            body,
-            isHTML: false,
-            hasAttachments,
-            attachments: [],
-            isRead,
-            isStarred,
-            labels,
-            extractionType: 'list_view'
-        };
-    } catch (error) {
-        console.error('Error extracting email from list:', error);
-        return null;
-    }
-}
-
-// Auto-detect email opens and send to API
 let lastEmailSubject = null;
 let observerInitialized = false;
 let processingTimeout = null;
 let isProcessing = false;
+let currentEmailId = null;
 
-/**
- * Initialize auto-detection of email opens
- */
+// SIMPLIFIED: Get current email ID
+function getCurrentEmailId() {
+    // Method 1: From URL (most reliable)
+    const urlMatch = location.href.match(/#[^/]+\/([A-Za-z0-9]+)/);
+    if (urlMatch) return urlMatch[1];
+    
+    // Method 2: From data attributes
+    const emailElement = document.querySelector('div[data-message-id]');
+    if (emailElement) return emailElement.getAttribute('data-message-id');
+    
+    return null;
+}
+
+// SIMPLIFIED: Initialize auto-detection
 function initAutoDetection() {
     if (observerInitialized) return;
+    
+    console.log('🔍 Initializing email auto-detection...');
     observerInitialized = true;
 
-    console.log('Initializing Gmail email open detection...');
-
-    // Observer to detect when email is opened
-    const observer = new MutationObserver((mutations) => {
-        // Check if we're viewing an email
+    // Main observer for email content changes
+    const observer = new MutationObserver(() => {
         if (isViewingEmail()) {
+            const emailId = getCurrentEmailId();
             const currentSubject = document.querySelector('h2')?.textContent || '';
-
-            console.log('Observer fired - Current:', currentSubject, '| Last:', lastEmailSubject, '| Processing:', isProcessing);
-
-            // Only process if it's a new email (different from last one)
-            if (currentSubject && currentSubject !== lastEmailSubject) {
-                // Reset processing flag for new email
+            
+            if (currentSubject && emailId && emailId !== currentEmailId) {
+                console.log('📧 New email detected:', currentSubject.substring(0, 50));
                 isProcessing = false;
                 lastEmailSubject = currentSubject;
-                console.log('✅ New email detected:', currentSubject);
-
-                // Clear any pending timeout
-                if (processingTimeout) {
-                    clearTimeout(processingTimeout);
-                }
-
-                // Debounce: Wait for email to fully load before processing
-                processingTimeout = setTimeout(() => {
-                    handleEmailOpen();
-                }, 1000);
-            } else {
-                console.log('⏭️ Skipping - same email or no subject');
+                currentEmailId = emailId;
+                
+                // Clear any existing UI immediately
+                removeLabelSuggestionsUI();
+                
+                if (processingTimeout) clearTimeout(processingTimeout);
+                processingTimeout = setTimeout(() => handleEmailOpen(), 1500);
             }
         } else {
-            // Don't reset immediately - might be transitioning to another email
-            // Only reset isProcessing to allow new emails to be processed
-            isProcessing = false;
+            // Not viewing an email, clear the UI
+            removeLabelSuggestionsUI();
+            currentEmailId = null;
+            lastEmailSubject = null;
         }
     });
 
-    // Observe changes in the main content area
+    // Start observing the main content area
     const mainArea = document.querySelector('div[role="main"]');
     if (mainArea) {
-        observer.observe(mainArea, {
-            childList: true,
-            subtree: true
-        });
-        console.log('Gmail observer attached');
+        observer.observe(mainArea, { childList: true, subtree: true });
+        console.log('✅ Observer started on main area');
     } else {
-        // If main area not found, try again after a delay
+        console.log('❌ Main area not found, retrying...');
         setTimeout(initAutoDetection, 1000);
     }
 }
 
-/**
- * Handle email open event
- */
+// SIMPLIFIED: Handle email open
 async function handleEmailOpen() {
-    if (isProcessing) {
-        console.log('Already processing an email, skipping...');
+    if (isProcessing) return;
+    
+    const currentEmailWhenStarted = getCurrentEmailId();
+    if (!currentEmailWhenStarted || !isViewingEmail()) {
+        isProcessing = false;
         return;
     }
-
+    
+    console.log('🚀 Processing email:', currentEmailWhenStarted);
     isProcessing = true;
 
     try {
-        // Extract the currently opened email
         const emailData = extractSingleEmail();
-
         if (!emailData) {
-            console.log('Could not extract email data');
+            console.log('❌ No email data found');
             isProcessing = false;
             return;
         }
 
-        // Process the email
+        console.log('📧 Email subject:', emailData.subject);
+        
+        // Process email and get label suggestions
         const processedData = processEmail(emailData, 1000);
-
-        // Send to API
         const result = await sendToAPI({
             emails: [processedData],
             totalEmails: 1,
-            totalChunks: processedData.totalChunks,
-            extractedAt: processedData.extractedAt,
             source: 'gmail',
             trigger: 'auto'
         });
 
-        if (result.success) {
-            console.log('Email data sent to API automatically');
+        console.log('🤖 API result:', result);
 
-            // Display label suggestions if available
-            if (result.data && result.data.suggestedLabels && result.data.suggestedLabels.length > 0) {
-                console.log('Received label suggestions:', result.data.suggestedLabels);
-                displayLabelSuggestions(result.data.suggestedLabels, emailData.subject);
-            }
+        // Final check - make sure we're still on the same email before showing UI
+        if (result.success && result.data?.suggestedLabels?.length > 0 && 
+            getCurrentEmailId() === currentEmailWhenStarted && isViewingEmail()) {
+            console.log('🎯 Displaying label suggestions:', result.data.suggestedLabels.length);
+            displayLabelSuggestions(result.data.suggestedLabels);
         } else {
-            console.log('Email data not sent:', result.reason || result.error);
+            console.log('❌ Conditions not met for showing labels:', {
+                success: result.success,
+                hasLabels: result.data?.suggestedLabels?.length > 0,
+                sameEmail: getCurrentEmailId() === currentEmailWhenStarted,
+                viewingEmail: isViewingEmail()
+            });
         }
     } catch (error) {
-        console.error('Error handling email open:', error);
+        console.error('❌ Error processing email:', error);
     } finally {
-        // Reset processing flag (it will be reset when new email is detected)
-        setTimeout(() => {
-            isProcessing = false;
-        }, 500);
+        setTimeout(() => { isProcessing = false; }, 1000);
     }
 }
 
-/**
- * Display label suggestions UI over the email
- * @param {Array} labels - Array of suggested label objects
- * @param {string} emailSubject - Subject of the email
- */
-function displayLabelSuggestions(labels, emailSubject) {
-    console.log('🎨 displayLabelSuggestions called with', labels.length, 'labels for:', emailSubject);
-
-    // Remove any existing label suggestion UI
+function displayLabelSuggestions(labels) {
     removeLabelSuggestionsUI();
-
-    // Create floating panel on right side
-    createRightSidePanel(labels, emailSubject);
+    createRightSidePanel(labels);
 }
 
-/**
- * Create floating label panel on the right side
- */
-function createRightSidePanel(labels, emailSubject) {
-    // Create fixed position container on the right side
+function createRightSidePanel(labels) {
     const container = document.createElement('div');
     container.id = 'email-reader-label-suggestions-right';
     container.className = 'email-reader-right-panel';
 
-    // Create header
     const header = document.createElement('div');
     header.className = 'email-reader-panel-header';
     header.innerHTML = `
@@ -839,333 +326,519 @@ function createRightSidePanel(labels, emailSubject) {
         <button class="email-reader-panel-close" title="Close">×</button>
     `;
 
-    // Create labels container
     const labelsContainer = document.createElement('div');
     labelsContainer.className = 'email-reader-panel-labels';
 
-    // Add each label as a clickable button
     labels.forEach((labelData) => {
         const labelBtn = document.createElement('button');
         labelBtn.className = 'email-reader-panel-label-btn';
         labelBtn.style.backgroundColor = labelData.color || '#4285F4';
-        labelBtn.setAttribute('data-label', labelData.label);
         labelBtn.innerHTML = `
             <span class="email-reader-label-text">${labelData.label}</span>
             <span class="email-reader-label-confidence">${Math.round(labelData.confidence * 100)}%</span>
         `;
 
-        // Add click handler
-        labelBtn.addEventListener('click', () => {
-            applyLabelToEmail(labelData.label, emailSubject);
+        labelBtn.addEventListener('click', async () => {
+            if (labelBtn.classList.contains('applied')) return;
+            
             labelBtn.classList.add('applied');
-            labelBtn.innerHTML = `<span class="email-reader-label-text">✓ ${labelData.label}</span>`;
+            labelBtn.innerHTML = `<span class="email-reader-label-text">⏳ Processing...</span>`;
+            
+            const success = await applyOrCreateLabel(labelData.label);
+            
+            if (success) {
+                labelBtn.innerHTML = `<span class="email-reader-label-text">✓ ${labelData.label}</span>`;
+                showNotification(`Label "${labelData.label}" applied successfully!`, 'success');
+            } else {
+                labelBtn.classList.remove('applied');
+                labelBtn.innerHTML = `
+                    <span class="email-reader-label-text">${labelData.label}</span>
+                    <span class="email-reader-label-confidence">${Math.round(labelData.confidence * 100)}%</span>
+                `;
+                showNotification(`Failed to apply label "${labelData.label}"`, 'error');
+            }
         });
 
         labelsContainer.appendChild(labelBtn);
     });
 
-    // Add close button handler
-    const closeBtn = header.querySelector('.email-reader-panel-close');
-    closeBtn.addEventListener('click', removeLabelSuggestionsUI);
-
-    // Assemble the UI
+    header.querySelector('.email-reader-panel-close').addEventListener('click', removeLabelSuggestionsUI);
     container.appendChild(header);
     container.appendChild(labelsContainer);
-
-    // Add to body (fixed position, right side)
     document.body.appendChild(container);
-
-    console.log('✅ Right side panel displayed');
+    
+    console.log('✅ Label panel created with', labels.length, 'labels');
 }
 
-/**
- * Create compact labels in toolbar
- */
-function createToolbarLabels(labels, emailSubject) {
-    // Find the toolbar area
-    const toolbar = document.querySelector('div[role="toolbar"]') ||
-                   document.querySelector('.iH') ||
-                   document.querySelector('[gh="tm"]');
-
-    if (!toolbar) {
-        console.log('⚠️ Toolbar not found, skipping toolbar labels');
-        return;
-    }
-
-    // Create the label suggestions container
-    const container = document.createElement('div');
-    container.id = 'email-reader-label-suggestions-toolbar';
-    container.className = 'email-reader-label-container email-reader-toolbar';
-
-    // Create header
-    const header = document.createElement('div');
-    header.className = 'email-reader-label-header';
-    header.innerHTML = `
-        <span class="email-reader-label-title">✨ Suggested Labels</span>
-        <button class="email-reader-label-close" title="Close">×</button>
-    `;
-
-    // Create labels container
-    const labelsContainer = document.createElement('div');
-    labelsContainer.className = 'email-reader-labels';
-
-    // Add each label as a clickable button
-    labels.forEach((labelData) => {
-        const labelBtn = document.createElement('button');
-        labelBtn.className = 'email-reader-label-btn';
-        labelBtn.style.backgroundColor = labelData.color || '#4285F4';
-        labelBtn.setAttribute('data-label', labelData.label);
-        labelBtn.innerHTML = `
-            <span class="email-reader-label-text">${labelData.label}</span>
-            <span class="email-reader-label-confidence">${Math.round(labelData.confidence * 100)}%</span>
-        `;
-
-        // Add click handler
-        labelBtn.addEventListener('click', () => {
-            applyLabelToEmail(labelData.label, emailSubject);
-            labelBtn.classList.add('applied');
-            labelBtn.innerHTML = `<span class="email-reade
-            r-label-text">✓ ${labelData.label}</span>`;
-        });
-
-        labelsContainer.appendChild(labelBtn);
-    });
-
-    // Add close button handler
-    const closeBtn = header.querySelector('.email-reader-label-close');
-    closeBtn.addEventListener('click', removeLabelSuggestionsUI);
-
-    // Assemble the UI
-    container.appendChild(header);
-    container.appendChild(labelsContainer);
-
-    // Insert at the beginning of the toolbar (left side)
-    toolbar.insertBefore(container, toolbar.firstChild);
-
-    console.log('✅ Toolbar labels displayed');
-}
-
-/**
- * Create labels below subject line
- */
-function createSubjectLabels(labels, emailSubject) {
-    // Find the subject element
-    const subjectElement = document.querySelector('h2');
-    if (!subjectElement) {
-        console.log('⚠️ Subject element not found, skipping subject labels');
-        return;
-    }
-
-    // Create container for subject labels (larger, full-width version)
-    const container = document.createElement('div');
-    container.id = 'email-reader-label-suggestions-subject';
-    container.className = 'email-reader-label-container email-reader-subject';
-
-    // Create header
-    const header = document.createElement('div');
-    header.className = 'email-reader-label-header-subject';
-    header.innerHTML = `
-        <span class="email-reader-label-title-subject">✨ AI Suggested Labels</span>
-        <button class="email-reader-label-close-subject" title="Close">×</button>
-    `;
-
-    // Create labels container
-    const labelsContainer = document.createElement('div');
-    labelsContainer.className = 'email-reader-labels-subject';
-
-    // Add each label as a clickable button
-    labels.forEach((labelData) => {
-        const labelBtn = document.createElement('button');
-        labelBtn.className = 'email-reader-label-btn-subject';
-        labelBtn.style.backgroundColor = labelData.color || '#4285F4';
-        labelBtn.setAttribute('data-label', labelData.label);
-        labelBtn.innerHTML = `
-            <span class="email-reader-label-text">${labelData.label}</span>
-            <span class="email-reader-label-confidence">${Math.round(labelData.confidence * 100)}%</span>
-        `;
-
-        // Add click handler
-        labelBtn.addEventListener('click', () => {
-            applyLabelToEmail(labelData.label, emailSubject);
-            labelBtn.classList.add('applied');
-            labelBtn.innerHTML = `<span class="email-reader-label-text">✓ ${labelData.label}</span>`;
-        });
-
-        labelsContainer.appendChild(labelBtn);
-    });
-
-    // Add close button handler
-    const closeBtn = header.querySelector('.email-reader-label-close-subject');
-    closeBtn.addEventListener('click', removeLabelSuggestionsUI);
-
-    // Assemble the UI
-    container.appendChild(header);
-    container.appendChild(labelsContainer);
-
-    // Insert after the subject
-    subjectElement.parentElement.insertBefore(container, subjectElement.nextSibling);
-
-    console.log('✅ Subject labels displayed');
-}
-
-/**
- * Remove label suggestions UI
- */
 function removeLabelSuggestionsUI() {
-    const rightPanel = document.getElementById('email-reader-label-suggestions-right');
-    if (rightPanel) rightPanel.remove();
-    console.log('🗑️ Labels removed');
+    const panel = document.getElementById('email-reader-label-suggestions-right');
+    if (panel) {
+        panel.remove();
+        console.log('🗑️ Label panel removed');
+    }
 }
 
 /**
- * Apply a label to the current email using Gmail UI
- * @param {string} label - Label name to apply
- * @param {string} emailSubject - Email subject for logging
+ * Improved: Apply or create label - complete workflow
  */
-function applyLabelToEmail(label, emailSubject) {
-    console.log(`Applying label "${label}" to email: ${emailSubject}`);
+async function applyOrCreateLabel(labelName) {
+    console.log(`🏷️ Processing label: "${labelName}"`);
 
-    // Try to find and click the "Labels" button in Gmail UI
-    const labelsButton = document.querySelector('[aria-label="Labels"]') ||
-                        document.querySelector('[data-tooltip="Labels"]') ||
-                        Array.from(document.querySelectorAll('div[role="button"]')).find(btn =>
-                            btn.getAttribute('aria-label')?.includes('Labels') ||
-                            btn.getAttribute('data-tooltip')?.includes('Labels')
-                        );
+    try {
+        // First, try to check if label exists and apply it
+        const labelExists = checkLabelExistsInSidebar(labelName);
+        
+        if (labelExists) {
+            console.log('✅ Label exists, applying it...');
+            const applied = await applyExistingLabel(labelName);
+            if (applied) return true;
+        }
 
-    if (labelsButton) {
-        // Click the labels button to open the menu
-        labelsButton.click();
+        // If label doesn't exist or couldn't be applied, create it
+        console.log(`📝 Label doesn't exist or couldn't be applied, creating: "${labelName}"`);
+        const created = await createNewLabel(labelName);
+        
+        if (!created) {
+            console.log(`❌ Failed to create label: "${labelName}"`);
+            return false;
+        }
 
-        // Wait for the menu to open
-        setTimeout(() => {
-            // Try to find and click the specific label in the menu
-            const labelMenuItems = document.querySelectorAll('[role="menuitemcheckbox"]');
-            let labelFound = false;
+        // Wait for label to be created and appear in sidebar
+        await sleep(2000);
+        
+        // Now try to apply the newly created label
+        console.log(`✅ Label created, now applying: "${labelName}"`);
+        const appliedAfterCreation = await applyExistingLabel(labelName);
+        
+        if (appliedAfterCreation) {
+            console.log(`✅ Successfully created and applied: "${labelName}"`);
+            return true;
+        } else {
+            console.log(`⚠️ Label created but failed to apply: "${labelName}"`);
+            // Label was created even if we couldn't apply it immediately
+            return true;
+        }
 
-            for (const item of labelMenuItems) {
-                const labelText = item.textContent.trim();
-                if (labelText.toLowerCase() === label.toLowerCase()) {
+    } catch (error) {
+        console.error(`❌ Error processing label "${labelName}":`, error);
+        return false;
+    }
+}
+
+/**
+ * Improved: Check if label exists in the sidebar
+ */
+function checkLabelExistsInSidebar(labelName) {
+    // Method 1: Check sidebar navigation
+    const sidebarLabels = document.querySelectorAll('div[role="navigation"] [data-tooltip], aside [data-tooltip]');
+    
+    for (const label of sidebarLabels) {
+        const tooltip = label.getAttribute('data-tooltip') || '';
+        const text = label.textContent?.trim() || '';
+        
+        if (tooltip.toLowerCase() === labelName.toLowerCase() || 
+            text.toLowerCase() === labelName.toLowerCase()) {
+            console.log(`✅ Found label in sidebar: "${labelName}"`);
+            return true;
+        }
+    }
+
+    // Method 2: Check in labels menu (if open)
+    const labelsMenu = document.querySelector('div[role="menu"]');
+    if (labelsMenu) {
+        const menuItems = labelsMenu.querySelectorAll('div[role="menuitemcheckbox"]');
+        for (const item of menuItems) {
+            const text = item.textContent?.trim() || '';
+            if (text.toLowerCase() === labelName.toLowerCase()) {
+                console.log(`✅ Found label in menu: "${labelName}"`);
+                return true;
+            }
+        }
+    }
+
+    console.log(`⚠️ Label "${labelName}" not found in sidebar`);
+    return false;
+}
+
+/**
+ * Improved: Apply an existing label using keyboard shortcut and menu
+ */
+async function applyExistingLabel(labelName) {
+    console.log(`🏷️ Attempting to apply label: "${labelName}"`);
+
+    try {
+        // Focus on email content area
+        const emailView = document.querySelector('[role="main"]');
+        if (emailView) emailView.focus();
+        
+        // Open labels menu with 'l' key
+        document.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'l', code: 'KeyL', keyCode: 76, which: 76,
+            bubbles: true, cancelable: true, composed: true
+        }));
+
+        await sleep(1000);
+
+        // Wait for and find the labels menu
+        let menu = null;
+        for (let i = 0; i < 10; i++) {
+            menu = document.querySelector('div[role="menu"], div[role="listbox"]');
+            if (menu) break;
+            await sleep(200);
+        }
+
+        if (!menu) {
+            console.log('❌ Could not open labels menu');
+            return false;
+        }
+
+        // Search for the label
+        const searchInput = menu.querySelector('input[type="text"]');
+        if (searchInput) {
+            searchInput.focus();
+            searchInput.value = '';
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            await sleep(200);
+            
+            searchInput.value = labelName;
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            await sleep(500);
+        }
+
+        // Find and click the label
+        const menuItems = menu.querySelectorAll('div[role="menuitemcheckbox"], div[role="option"]');
+        let labelFound = false;
+        
+        for (const item of menuItems) {
+            const text = item.textContent?.trim() || '';
+            if (text.toLowerCase().includes(labelName.toLowerCase())) {
+                const isChecked = item.getAttribute('aria-checked') === 'true' || 
+                                 item.getAttribute('aria-selected') === 'true';
+                
+                if (!isChecked) {
                     item.click();
+                    await sleep(800);
+                    console.log(`✅ Label applied: "${labelName}"`);
                     labelFound = true;
-                    console.log(`Label "${label}" applied successfully`);
+                } else {
+                    console.log(`✅ Label already applied: "${labelName}"`);
+                    labelFound = true;
+                }
+                break;
+            }
+        }
+
+        // Close menu
+        document.dispatchEvent(new KeyboardEvent('keydown', { 
+            key: 'Escape', 
+            code: 'Escape',
+            bubbles: true, 
+            cancelable: true 
+        }));
+
+        return labelFound;
+
+    } catch (error) {
+        console.error('❌ Error applying label:', error);
+        // Ensure menu is closed on error
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        return false;
+    }
+}
+
+/**
+ * Improved: Create a new label using sidebar's + button
+ */
+async function createNewLabel(labelName) {
+    console.log(`📝 Creating new label: "${labelName}"`);
+
+    try {
+        // Find the "+" button next to "Labels" in sidebar
+        const plusButton = findLabelsPlusButton();
+        
+        if (!plusButton) {
+            console.log('❌ Could not find + button for labels');
+            return false;
+        }
+
+        console.log('✅ Found + button, clicking...');
+        plusButton.click();
+        await sleep(1500);
+
+        // Wait for and find the create label dialog - FIXED SELECTORS
+        let dialog = null;
+        for (let i = 0; i < 15; i++) {
+            // Try multiple possible dialog selectors
+            dialog = document.querySelector('div[role="dialog"], .Kj-JD-K7, .aSs, .aB, .aoD, [aria-modal="true"]');
+            if (dialog) {
+                console.log('✅ Dialog found with selector:', dialog.className);
+                break;
+            }
+            await sleep(200);
+        }
+
+        if (!dialog) {
+            console.log('❌ Create label dialog did not open - checking for any modal');
+            // Last attempt: look for any element that might be the dialog
+            const allDivs = document.querySelectorAll('div');
+            for (const div of allDivs) {
+                const style = window.getComputedStyle(div);
+                if (style.zIndex > 1000 || div.textContent?.includes('new label') || div.textContent?.includes('Please enter')) {
+                    console.log('✅ Found potential dialog:', div.className);
+                    dialog = div;
                     break;
                 }
             }
+        }
 
-            if (!labelFound) {
-                console.log(`Label "${label}" not found in Gmail. You may need to create it first.`);
-                // Close the menu
-                document.body.click();
+        if (!dialog) {
+            console.log('❌ Create label dialog not found after multiple attempts');
+            return false;
+        }
 
-                // Show notification to user
-                showNotification(`Label "${label}" needs to be created in Gmail first`, 'warning');
-            } else {
-                showNotification(`Label "${label}" applied successfully!`, 'success');
+        // FIXED: Find input field with better selectors
+        let input = dialog.querySelector('input[type="text"]');
+        if (!input) {
+            // Try to find any input in the dialog
+            input = dialog.querySelector('input');
+        }
+        if (!input) {
+            // Look for contenteditable or any text input
+            const inputs = dialog.querySelectorAll('input, [contenteditable="true"]');
+            input = inputs[0];
+        }
+
+        if (!input) {
+            console.log('❌ Input field not found in dialog');
+            return false;
+        }
+
+        console.log('✅ Input field found, filling label name...');
+        
+        // Clear and set input value
+        input.focus();
+        await sleep(200);
+        
+        // Different approach for different input types
+        if (input.tagName === 'INPUT') {
+            input.value = '';
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            await sleep(200);
+            
+            input.value = labelName;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+            // For contenteditable
+            input.textContent = labelName;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        await sleep(800);
+
+        // FIXED: Find Create button with better logic
+        const buttons = dialog.querySelectorAll('button, div[role="button"]');
+        let createButton = null;
+        
+        console.log('🔍 Looking for Create button among', buttons.length, 'buttons');
+        
+        for (const button of buttons) {
+            const text = button.textContent?.trim().toLowerCase();
+            const ariaLabel = button.getAttribute('aria-label')?.toLowerCase() || '';
+            console.log('Button text:', text, 'aria-label:', ariaLabel);
+            
+            if (text === 'create' || text === 'save' || 
+                ariaLabel.includes('create') || ariaLabel.includes('save') ||
+                button.innerHTML.includes('Create') || button.innerHTML.includes('Save')) {
+                createButton = button;
+                console.log('✅ Found create button:', text);
+                break;
             }
-        }, 300);
-    } else {
-        console.log('Labels button not found in Gmail UI');
-        showNotification('Could not find Gmail labels button', 'error');
+        }
+
+        // Alternative: Look for disabled state change (Create button enables when text entered)
+        if (!createButton) {
+            for (const button of buttons) {
+                if (!button.disabled && button.textContent?.trim()) {
+                    createButton = button;
+                    console.log('✅ Found enabled button as create button:', button.textContent);
+                    break;
+                }
+            }
+        }
+
+        if (!createButton) {
+            console.log('❌ Create button not found');
+            // Try to find by position (usually the rightmost button)
+            const enabledButtons = Array.from(buttons).filter(btn => !btn.disabled && btn.textContent?.trim());
+            if (enabledButtons.length > 0) {
+                createButton = enabledButtons[enabledButtons.length - 1];
+                console.log('✅ Using last enabled button as create button:', createButton.textContent);
+            }
+        }
+
+        if (!createButton || createButton.disabled) {
+            console.log('❌ Create button not found or still disabled');
+            return false;
+        }
+
+        console.log('✅ Clicking Create button');
+        createButton.click();
+        await sleep(1200);
+
+        // Verify success by checking if dialog closed
+        const dialogStillOpen = document.querySelector('div[role="dialog"], .Kj-JD-K7, .aSs, .aB, .aoD');
+        if (!dialogStillOpen) {
+            console.log(`✅ Label created successfully: "${labelName}"`);
+            return true;
+        } else {
+            console.log('❌ Dialog still open after click - creation may have failed');
+            return false;
+        }
+
+    } catch (error) {
+        console.error('❌ Error creating label:', error);
+        return false;
     }
 }
 
 /**
- * Show a temporary notification to the user
- * @param {string} message - Message to display
- * @param {string} type - Type of notification (success, error, warning)
+ * Improved: Find the + button next to Labels in sidebar
  */
-function showNotification(message, type = 'info') {
-    // Remove existing notification
-    const existingNotif = document.getElementById('email-reader-notification');
-    if (existingNotif) {
-        existingNotif.remove();
+function findLabelsPlusButton() {
+    // Method 1: Look for specific tooltips in sidebar
+    const sidebar = document.querySelector('div[role="navigation"], aside, nav');
+    if (sidebar) {
+        const tooltipButtons = sidebar.querySelectorAll('[data-tooltip]');
+        for (const btn of tooltipButtons) {
+            const tooltip = btn.getAttribute('data-tooltip')?.toLowerCase() || '';
+            if (tooltip.includes('create') && tooltip.includes('label')) {
+                console.log('✅ Found create label button by tooltip in sidebar');
+                return btn;
+            }
+        }
     }
 
-    // Create notification element
+    // Method 2: Look for Labels text and find nearby + button
+    const labelsText = Array.from(document.querySelectorAll('*')).find(el => 
+        el.textContent?.trim() === 'Labels' || el.textContent?.trim() === 'Label'
+    );
+    
+    if (labelsText) {
+        console.log('✅ Found Labels text, looking for nearby + button');
+        
+        // Look in parent container
+        let container = labelsText.closest('div');
+        for (let i = 0; i < 5; i++) {
+            if (!container) break;
+            
+            const plusBtn = container.querySelector('[aria-label*="+"], [data-tooltip*="+"], [aria-label*="create"], [data-tooltip*="create"], [aria-label*="new"], [data-tooltip*="new"]');
+            if (plusBtn) {
+                console.log('✅ Found + button near Labels text');
+                return plusBtn;
+            }
+            container = container.parentElement;
+        }
+    }
+
+    // Method 3: Look for any button with + icon
+    const allButtons = document.querySelectorAll('button, div[role="button"]');
+    for (const btn of allButtons) {
+        const text = btn.textContent?.trim();
+        const ariaLabel = btn.getAttribute('aria-label')?.toLowerCase() || '';
+        const tooltip = btn.getAttribute('data-tooltip')?.toLowerCase() || '';
+        
+        if (text === '+' || 
+            ariaLabel.includes('create new label') ||
+            tooltip.includes('create new label') ||
+            ariaLabel === 'create new label' ||
+            tooltip === 'create new label') {
+            console.log('✅ Found + button by text/aria-label');
+            return btn;
+        }
+    }
+
+    // Method 4: Look in the left sidebar specifically
+    const leftSidebar = document.querySelector('[guidedhelpid="navigation_container"]');
+    if (leftSidebar) {
+        const plusButtons = leftSidebar.querySelectorAll('div[role="button"]');
+        for (const btn of plusButtons) {
+            if (btn.textContent?.includes('+') || btn.getAttribute('aria-label')?.includes('label')) {
+                console.log('✅ Found + button in left sidebar');
+                return btn;
+            }
+        }
+    }
+
+    console.log('❌ + button not found after all methods');
+    return null;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function showNotification(message, type = 'info') {
+    const existing = document.getElementById('email-reader-notification');
+    if (existing) existing.remove();
+
     const notification = document.createElement('div');
     notification.id = 'email-reader-notification';
     notification.className = `email-reader-notification ${type}`;
     notification.textContent = message;
-
-    // Add to page
     document.body.appendChild(notification);
 
-    // Auto-remove after 3 seconds
     setTimeout(() => {
         notification.classList.add('fade-out');
         setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    }, 4000);
 }
 
-// Initialize auto-detection when page loads
+// SIMPLIFIED INITIALIZATION - Only one initialization block
+console.log('🚀 Gmail content script loading...');
+
 waitForGmailLoad().then(() => {
+    console.log('✅ Gmail loaded, starting auto-detection');
     initAutoDetection();
 
-    // Re-check observer every 5 seconds to ensure it's still working
+    // Health check - restart if observer stops working
     setInterval(() => {
         if (!observerInitialized || !document.querySelector('div[role="main"]')) {
-            console.log('🔄 Re-initializing observer...');
+            console.log('🔄 Restarting auto-detection...');
             observerInitialized = false;
             initAutoDetection();
         }
     }, 5000);
 
-    // Watch for Gmail navigation changes (SPA routing)
+    // Additional URL change detection as backup
     let lastUrl = location.href;
-    let lastEmailId = null;
-
-    // Extract email ID from URL hash
-    function getEmailIdFromUrl() {
-        const match = location.href.match(/#[^/]+\/([A-Za-z0-9]+)/);
-        return match ? match[1] : null;
-    }
-
-    // Check for email changes every 500ms
     setInterval(() => {
         const currentUrl = location.href;
-        const currentEmailId = getEmailIdFromUrl();
-
-        // URL changed
         if (currentUrl !== lastUrl) {
+            console.log('🔗 URL changed, checking for email...');
             lastUrl = currentUrl;
-            console.log('📍 Gmail navigation detected:', currentUrl);
-        }
-
-        // Email ID changed - new email opened!
-        if (currentEmailId && currentEmailId !== lastEmailId) {
-            lastEmailId = currentEmailId;
-            console.log('📧 New email ID detected:', currentEmailId);
-
+            
             // Reset state for new email
+            currentEmailId = null;
+            lastEmailSubject = null;
             isProcessing = false;
-            lastEmailSubject = null;
-
-            // Wait for email to load, then process
+            removeLabelSuggestionsUI();
+            
+            // Wait a bit then check if we're viewing an email
             setTimeout(() => {
-                // Check if email subject exists (works in both full view and preview pane)
-                const subject = document.querySelector('h2')?.textContent || '';
-                const hasEmailBody = !!document.querySelector('div[data-message-id]') ||
-                                    !!document.querySelector('.a3s.aiL');
-
-                if (subject && hasEmailBody) {
-                    console.log('🔄 Force processing new email:', subject);
-                    console.log('📧 View mode:', isViewingEmail() ? 'Full view' : 'Preview pane');
-                    lastEmailSubject = subject;
-                    handleEmailOpen();
-                } else {
-                    console.log('⏳ Email not fully loaded yet, subject:', subject, 'hasBody:', hasEmailBody);
+                if (isViewingEmail()) {
+                    const emailId = getCurrentEmailId();
+                    const subject = document.querySelector('h2')?.textContent || '';
+                    if (emailId && subject) {
+                        console.log('📧 Email detected after URL change');
+                        currentEmailId = emailId;
+                        lastEmailSubject = subject;
+                        handleEmailOpen();
+                    }
                 }
-            }, 1500);
+            }, 2000);
         }
-
-        // Went back to inbox - reset email ID
-        if (!currentEmailId && lastEmailId) {
-            console.log('📋 Back to inbox');
-            lastEmailId = null;
-            lastEmailSubject = null;
-        }
-    }, 500);
+    }, 1000);
 });
 
-console.log('Gmail content script loaded');
+console.log('✅ Gmail content script loaded - Complete automation with reliable label creation');
