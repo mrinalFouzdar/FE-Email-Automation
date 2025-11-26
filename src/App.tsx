@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from './services/api';
 import EmailAccountManager from './components/EmailAccountManager';
+import LoginPage from './pages/LoginPage';
 
 const API_URL = 'http://localhost:4000/api';
 
@@ -48,19 +49,44 @@ export default function App() {
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  const checkAuth = () => {
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+
+    if (token && userData) {
+      setIsAuthenticated(true);
+      setUser(JSON.parse(userData));
+      return true;
+    }
+
+    setIsAuthenticated(false);
+    setUser(null);
+    return false;
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setIsAuthenticated(false);
+    setUser(null);
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
+
       const [emailsRes, remindersRes] = await Promise.all([
-        axios.get(`${API_URL}/emails`),
-        axios.get(`${API_URL}/reminders`)
+        api.get(`${API_URL}/emails`),
+        api.get(`${API_URL}/reminders`)
       ]);
 
       const emailsWithMeta = await Promise.all(
         emailsRes.data.map(async (email: Email) => {
           try {
-            const metaRes = await axios.get(`${API_URL}/emails/${email.id}/meta`);
+            const metaRes = await api.get(`${API_URL}/emails/${email.id}/meta`);
             return { ...email, meta: metaRes.data };
           } catch {
             return email;
@@ -72,19 +98,28 @@ export default function App() {
       setReminders(remindersRes.data);
       setError(null);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch data');
+      console.error('Error fetching data:', err);
+      if (err.response?.status === 401) {
+        handleLogout();
+      } else {
+        setError(err.message || 'Failed to fetch data');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    if (checkAuth()) {
+      fetchData();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const resolveReminder = async (id: number) => {
     try {
-      await axios.post(`${API_URL}/reminders/${id}/resolve`);
+      await api.post(`${API_URL}/reminders/${id}/resolve`);
       setReminders(reminders.filter(r => r.id !== id));
     } catch (err) {
       console.error('Failed to resolve reminder:', err);
@@ -178,6 +213,10 @@ export default function App() {
     );
   }
 
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-6">
       <div className="max-w-7xl mx-auto px-5">
@@ -189,25 +228,35 @@ export default function App() {
               </h1>
               <p className="text-blue-100 text-lg font-medium">Smart Email Management with AI-Powered Insights & Analytics</p>
             </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-blue-100/70">Welcome,</p>
+                <p className="font-bold">{user?.name || user?.email}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="px-6 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl font-bold transition-all duration-300 transform hover:scale-105"
+              >
+                🚪 Logout
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-3">
             <button
-              className={`px-8 py-4 rounded-xl text-base font-bold transition-all duration-300 transform ${
-                activeTab === 'accounts'
-                  ? 'bg-white text-blue-600 shadow-2xl scale-105'
-                  : 'bg-white/20 text-white hover:bg-white/30 hover:scale-105 backdrop-blur-sm'
-              }`}
+              className={`px-8 py-4 rounded-xl text-base font-bold transition-all duration-300 transform ${activeTab === 'accounts'
+                ? 'bg-white text-blue-600 shadow-2xl scale-105'
+                : 'bg-white/20 text-white hover:bg-white/30 hover:scale-105 backdrop-blur-sm'
+                }`}
               onClick={() => setActiveTab('accounts')}
             >
               <span className="mr-2 text-xl">📧</span> Email Accounts
             </button>
             <button
-              className={`px-8 py-4 rounded-xl text-base font-bold transition-all duration-300 transform ${
-                activeTab === 'emails'
-                  ? 'bg-white text-purple-600 shadow-2xl scale-105'
-                  : 'bg-white/20 text-white hover:bg-white/30 hover:scale-105 backdrop-blur-sm'
-              }`}
+              className={`px-8 py-4 rounded-xl text-base font-bold transition-all duration-300 transform ${activeTab === 'emails'
+                ? 'bg-white text-purple-600 shadow-2xl scale-105'
+                : 'bg-white/20 text-white hover:bg-white/30 hover:scale-105 backdrop-blur-sm'
+                }`}
               onClick={() => setActiveTab('emails')}
             >
               <span className="mr-2 text-xl">📬</span> Emails & Reminders
@@ -246,11 +295,10 @@ export default function App() {
                   reminders.map(reminder => (
                     <div
                       key={reminder.id}
-                      className={`mb-4 p-4 rounded-xl border-l-4 shadow-lg transition-all hover:shadow-xl ${
-                        reminder.priority === 10 ? 'bg-gradient-to-r from-red-50 to-red-100 border-red-600' :
+                      className={`mb-4 p-4 rounded-xl border-l-4 shadow-lg transition-all hover:shadow-xl ${reminder.priority === 10 ? 'bg-gradient-to-r from-red-50 to-red-100 border-red-600' :
                         reminder.priority === 9 ? 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-600' :
-                        'bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-600'
-                      }`}
+                          'bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-600'
+                        }`}
                     >
                       <div className="font-semibold mb-2 text-gray-800">{reminder.reminder_text}</div>
                       <div className="flex justify-between items-center text-sm text-gray-600">
@@ -315,11 +363,10 @@ export default function App() {
                 ].map((btn) => (
                   <button
                     key={btn.key}
-                    className={`px-5 py-2.5 border-2 rounded-full font-bold transition-all transform hover:scale-105 ${
-                      filter === btn.key
-                        ? `bg-gradient-to-r from-${btn.color}-500 to-${btn.color}-600 text-white border-${btn.color}-600 shadow-lg`
-                        : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:shadow-md'
-                    }`}
+                    className={`px-5 py-2.5 border-2 rounded-full font-bold transition-all transform hover:scale-105 ${filter === btn.key
+                      ? `bg-gradient-to-r from-${btn.color}-500 to-${btn.color}-600 text-white border-${btn.color}-600 shadow-lg`
+                      : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:shadow-md'
+                      }`}
                     onClick={() => setFilter(btn.key)}
                   >
                     {btn.label}
@@ -337,11 +384,10 @@ export default function App() {
                   filteredEmails.map(email => (
                     <div
                       key={email.id}
-                      className={`border-2 rounded-xl p-5 transition-all cursor-pointer hover:shadow-2xl transform hover:-translate-y-1 ${
-                        email.is_unread
-                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-400 shadow-lg'
-                          : 'bg-white border-gray-200 hover:border-gray-300'
-                      }`}
+                      className={`border-2 rounded-xl p-5 transition-all cursor-pointer hover:shadow-2xl transform hover:-translate-y-1 ${email.is_unread
+                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-400 shadow-lg'
+                        : 'bg-white border-gray-200 hover:border-gray-300'
+                        }`}
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div className="font-bold text-base text-gray-800 flex items-center gap-2">
