@@ -126,16 +126,7 @@ export default function App() {
     }
   };
 
-  const filteredEmails = emails.filter(email => {
-    if (filter === 'all') return true;
-    if (filter === 'unread') return email.is_unread;
-    if (filter === 'hierarchy') return email.meta?.is_hierarchy;
-    if (filter === 'client') return email.meta?.is_client;
-    if (filter === 'meeting') return email.meta?.is_meeting;
-    if (filter === 'escalation') return email.meta?.is_escalation;
-    if (filter === 'urgent') return email.meta?.is_urgent;
-    return true;
-  });
+  const uniqueLabels = Array.from(new Set(emails.flatMap(e => e.labels || []))).sort();
 
   const stats = {
     total: emails.length,
@@ -148,6 +139,17 @@ export default function App() {
 
   const renderEmailLabels = (email: Email) => {
     const labels = [];
+
+    // Render AI-generated text labels
+    if (email.labels && email.labels.length > 0) {
+      email.labels.forEach(label => {
+        labels.push(
+          <span key={`label-${label}`} className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-gray-200 text-gray-700 shadow-sm border border-gray-300">
+            {label}
+          </span>
+        );
+      });
+    }
 
     if (email.is_unread) {
       labels.push(
@@ -201,6 +203,19 @@ export default function App() {
 
     return labels;
   };
+
+  const filteredEmails = emails.filter(email => {
+    if (filter === 'all') return true;
+    if (filter === 'unread') return email.is_unread;
+    if (filter === 'hierarchy') return email.meta?.is_hierarchy;
+    if (filter === 'client') return email.meta?.is_client;
+    if (filter === 'meeting') return email.meta?.is_meeting;
+    if (filter === 'escalation') return email.meta?.is_escalation;
+    if (filter === 'urgent') return email.meta?.is_urgent;
+    // Check if filter matches one of the labels
+    if (email.labels && email.labels.includes(filter)) return true;
+    return false;
+  });
 
   if (loading) {
     return (
@@ -372,6 +387,26 @@ export default function App() {
                     {btn.label}
                   </button>
                 ))}
+
+                {/* Dynamic Labels */}
+                {uniqueLabels.length > 0 && (
+                  <>
+                    <div className="w-full h-px bg-gray-200 my-2"></div>
+                    <div className="w-full text-sm font-bold text-gray-500 mb-2">AI Labels:</div>
+                    {uniqueLabels.map(label => (
+                      <button
+                        key={label}
+                        className={`px-4 py-1.5 border rounded-full text-sm font-semibold transition-all transform hover:scale-105 ${filter === label
+                          ? 'bg-gray-800 text-white border-gray-800 shadow-lg'
+                          : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                          }`}
+                        onClick={() => setFilter(label)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
 
               <div className="flex flex-col gap-4">
