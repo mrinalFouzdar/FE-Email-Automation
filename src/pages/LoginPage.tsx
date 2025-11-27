@@ -1,12 +1,11 @@
-import  { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../config/api.config';
 
 const LoginPage: React.FC = () => {
   console.log('🔥 NEW LoginPage.tsx loaded - USERNAME/PASSWORD VERSION');
-  const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -16,32 +15,44 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const endpoint = isSignup ? '/oauth2/register' : '/oauth2/login';
-      const payload = isSignup
-        ? { email, password, name }
-        : { email, password };
+      const endpoint = '/auth/login';
+      const payload = { email, password };
 
-      const response = await axios.post(`http://localhost:4000${endpoint}`, payload);
+      const response = await axios.post(getApiUrl(endpoint), payload);
+
+      console.log('Login response:', response);
+      console.log('Response data:', response.data);
+
+      // Extract data from response
+      const responseData = response.data?.data || response.data;
+      const token = responseData.token;
+      const user = responseData.user;
+
+      if (!token || !user) {
+        throw new Error('Invalid response format from server');
+      }
 
       // Store token and user data
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
 
-      // Reload to trigger auth check in App
-      window.location.href = '/';
+      console.log('Login successful, redirecting to:', user.role === 'admin' ? '/admin' : '/');
+
+      // Redirect based on user role
+      if (user.role === 'admin') {
+        // Admin users go to admin dashboard
+        window.location.href = '/admin';
+      } else {
+        // Regular users go to main dashboard
+        window.location.href = '/';
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || `${isSignup ? 'Registration' : 'Login'} failed. Please try again.`);
+      console.error('Login error:', err);
+      console.error('Error response:', err.response);
+      setError(err.response?.data?.message || err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const toggleMode = () => {
-    setIsSignup(!isSignup);
-    setError('');
-    setEmail('');
-    setPassword('');
-    setName('');
   };
 
   return (
@@ -93,10 +104,13 @@ const LoginPage: React.FC = () => {
 
             <div className="text-center mb-10">
               <h2 className="text-3xl font-bold text-white mb-2">
-                {isSignup ? 'Create Account' : 'Welcome Back'}
+                Welcome Back
               </h2>
               <p className="text-blue-200/70">
-                {isSignup ? 'Sign up to get started' : 'Sign in to access your dashboard'}
+                Sign in to access your dashboard
+              </p>
+              <p className="text-xs text-blue-300/60 mt-2">
+                Contact your administrator to create an account
               </p>
             </div>
 
@@ -104,23 +118,6 @@ const LoginPage: React.FC = () => {
               {error && (
                 <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-xl backdrop-blur-sm">
                   <p className="text-sm font-medium">{error}</p>
-                </div>
-              )}
-
-              {isSignup && (
-                <div>
-                  <label htmlFor="name" className="block text-sm font-bold text-blue-200 mb-2">
-                    Full Name
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required={isSignup}
-                    className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-blue-200/40 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
-                    placeholder="John Doe"
-                  />
                 </div>
               )}
 
@@ -162,29 +159,20 @@ const LoginPage: React.FC = () => {
                 {loading ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    {isSignup ? 'Creating Account...' : 'Signing in...'}
+                    Signing in...
                   </>
                 ) : (
                   <>
-                    <span className="text-xl">{isSignup ? '✨' : '🔐'}</span>
-                    {isSignup ? 'Sign Up' : 'Sign In'}
+                    <span className="text-xl">🔐</span>
+                    Sign In
                   </>
                 )}
               </button>
             </form>
 
             <div className="mt-6 text-center">
-              <button
-                onClick={toggleMode}
-                className="text-blue-200 hover:text-white font-semibold transition-colors"
-              >
-                {isSignup ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-              </button>
-            </div>
-
-            <div className="mt-6 text-center">
               <p className="text-xs text-blue-200/40">
-                By {isSignup ? 'signing up' : 'signing in'}, you agree to our Terms of Service and Privacy Policy.
+                By signing in, you agree to our Terms of Service and Privacy Policy.
               </p>
             </div>
           </div>

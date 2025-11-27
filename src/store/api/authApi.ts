@@ -1,11 +1,12 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { API_CONFIG } from '../../config/api.config';
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
 export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: fetchBaseQuery({
-    baseUrl,
+    baseUrl: API_CONFIG.BASE_URL,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem('token');
       if (token) {
@@ -18,14 +19,14 @@ export const authApi = createApi({
   endpoints: (builder) => ({
     login: builder.mutation({
       query: (credentials) => ({
-        url: '/oauth2/login',
+        url: '/auth/login',
         method: 'POST',
         body: credentials,
       }),
     }),
     register: builder.mutation({
       query: (userData) => ({
-        url: '/oauth2/register',
+        url: '/auth/register',
         method: 'POST',
         body: userData,
       }),
