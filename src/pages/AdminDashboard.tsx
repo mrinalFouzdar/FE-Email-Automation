@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import { toast } from 'react-toastify';
 import api from '../services/api';
 import LabelApprovalCard from '../components/LabelApprovalCard';
 import AdminUserAccountManager from '../components/AdminUserAccountManager';
+import { createUserSchema } from '../shared/schemas/admin.schema';
 
 interface PendingLabel {
     id: number;
@@ -41,17 +44,6 @@ const AdminDashboard = () => {
     const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [showCreateUserForm, setShowCreateUserForm] = useState(false);
-    const [createUserData, setCreateUserData] = useState({
-        email: '',
-        password: '',
-        name: '',
-        role: 'user',
-        imapHost: '',
-        imapPort: 993,
-        imapPassword: ''
-    });
-    const [createUserError, setCreateUserError] = useState('');
-    const [createUserSuccess, setCreateUserSuccess] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -124,24 +116,26 @@ const AdminDashboard = () => {
         fetchSystemStats(); // Refresh stats
     };
 
-    const handleCreateUser = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setCreateUserError('');
-        setCreateUserSuccess('');
-
+    const handleCreateUser = async (values: any, { setFieldError, resetForm, setSubmitting }: any) => {
         try {
-            const response = await api.post('/admin/users', createUserData);
-            const hasImap = createUserData.imapHost && createUserData.imapPassword;
+            const response = await api.post('/admin/users', values);
+            const hasImap = values.imapHost && values.imapPassword;
             const successMsg = hasImap
                 ? 'User and IMAP account created successfully! User can now login and emails will be fetched automatically.'
                 : 'User created successfully!';
-            setCreateUserSuccess(successMsg);
-            setCreateUserData({ email: '', password: '', name: '', role: 'user', imapHost: '', imapPort: 993, imapPassword: '' });
+
+            toast.success(successMsg);
+
+            resetForm();
             setShowCreateUserForm(false);
             fetchUsers();
             fetchSystemStats();
         } catch (error: any) {
-            setCreateUserError(error.response?.data?.message || 'Failed to create user');
+            const errorMsg = error.response?.data?.message || 'Failed to create user';
+            setFieldError('email', errorMsg);
+            toast.error(errorMsg);
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -166,12 +160,6 @@ const AdminDashboard = () => {
                                 <p className="text-xs text-slate-500 uppercase">{user?.role}</p>
                             </div>
                             <button
-                                onClick={() => navigate('/')}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition mr-2 font-semibold"
-                            >
-                                📧 View Emails
-                            </button>
-                            <button
                                 onClick={handleLogout}
                                 className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"
                             >
@@ -193,8 +181,8 @@ const AdminDashboard = () => {
                 <div className="flex gap-3 mb-6">
                     <button
                         className={`px-6 py-3 rounded-xl text-base font-bold transition-all duration-300 ${activeTab === 'users'
-                                ? 'bg-blue-600 text-white shadow-lg'
-                                : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
                             }`}
                         onClick={() => setActiveTab('users')}
                     >
@@ -202,8 +190,8 @@ const AdminDashboard = () => {
                     </button>
                     <button
                         className={`px-6 py-3 rounded-xl text-base font-bold transition-all duration-300 ${activeTab === 'labels'
-                                ? 'bg-purple-600 text-white shadow-lg'
-                                : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                            ? 'bg-purple-600 text-white shadow-lg'
+                            : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
                             }`}
                         onClick={() => setActiveTab('labels')}
                     >
@@ -211,8 +199,8 @@ const AdminDashboard = () => {
                     </button>
                     <button
                         className={`px-6 py-3 rounded-xl text-base font-bold transition-all duration-300 ${activeTab === 'stats'
-                                ? 'bg-green-600 text-white shadow-lg'
-                                : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                            ? 'bg-green-600 text-white shadow-lg'
+                            : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
                             }`}
                         onClick={() => setActiveTab('stats')}
                     >
@@ -245,198 +233,204 @@ const AdminDashboard = () => {
 
                         {/* Create User Form */}
                         {showCreateUserForm && (
-                            <div className="mb-6 p-6 bg-slate-900/50 rounded-xl border border-slate-700">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div>
-                                        <h4 className="text-xl font-bold text-white">Create New User</h4>
-                                        <p className="text-sm text-slate-400 mt-1">
-                                            {createUserData.role === 'admin'
-                                                ? 'Creating an admin account (no IMAP configuration needed)'
-                                                : 'IMAP configuration is required for regular users. Emails will be fetched automatically.'}
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setShowCreateUserForm(false);
-                                            setCreateUserError('');
-                                            setCreateUserData({ email: '', password: '', name: '', role: 'user', imapHost: '', imapPort: 993, imapPassword: '' });
-                                        }}
-                                        className="text-slate-400 hover:text-white"
-                                    >
-                                        ✕ Cancel
-                                    </button>
-                                </div>
+                            <Formik
+                                initialValues={{
+                                    email: '',
+                                    password: '',
+                                    name: '',
+                                    role: 'user',
+                                    imapHost: '',
+                                    imapPort: 993,
+                                    imapPassword: ''
+                                }}
+                                validationSchema={createUserSchema}
+                                onSubmit={handleCreateUser}
+                            >
+                                {({ values, errors, touched, setFieldValue, isSubmitting }) => (
+                                    <div className="mb-6 p-6 bg-slate-900/50 rounded-xl border border-slate-700">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <h4 className="text-xl font-bold text-white">Create New User</h4>
+                                                <p className="text-sm text-slate-400 mt-1">
+                                                    {values.role === 'admin'
+                                                        ? 'Creating an admin account (no IMAP configuration needed)'
+                                                        : 'IMAP configuration is required for regular users. Emails will be fetched automatically.'}
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCreateUserForm(false)}
+                                                className="text-slate-400 hover:text-white"
+                                            >
+                                                ✕ Cancel
+                                            </button>
+                                        </div>
 
-                                {createUserError && (
-                                    <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
-                                        {createUserError}
+                                        <Form className="space-y-4">
+                                            {/* Section 1: User Info */}
+                                            <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-600">
+                                                <h5 className="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">👤 User Information</h5>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label htmlFor="name" className="block text-sm font-semibold text-slate-300 mb-2">
+                                                            Name *
+                                                        </label>
+                                                        <Field
+                                                            id="name"
+                                                            name="name"
+                                                            type="text"
+                                                            className={`w-full px-4 py-2 bg-slate-700 border ${errors.name && touched.name ? 'border-red-500' : 'border-slate-600'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                                                            placeholder="John Doe"
+                                                        />
+                                                        <ErrorMessage name="name" component="div" className="text-red-400 text-xs mt-1" />
+                                                    </div>
+                                                    <div>
+                                                        <label htmlFor="email" className="block text-sm font-semibold text-slate-300 mb-2">
+                                                            Email * <span className="text-xs text-slate-400">(Used for both system login & IMAP)</span>
+                                                        </label>
+                                                        <Field
+                                                            id="email"
+                                                            name="email"
+                                                            type="email"
+                                                            className={`w-full px-4 py-2 bg-slate-700 border ${errors.email && touched.email ? 'border-red-500' : 'border-slate-600'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                                                            placeholder="user@example.com"
+                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                                const email = e.target.value;
+                                                                setFieldValue('email', email);
+
+                                                                // Auto-detect IMAP host based on email domain
+                                                                const domain = email.split('@')[1];
+                                                                if (domain === 'gmail.com') {
+                                                                    setFieldValue('imapHost', 'imap.gmail.com');
+                                                                } else if (domain === 'outlook.com' || domain === 'hotmail.com') {
+                                                                    setFieldValue('imapHost', 'outlook.office365.com');
+                                                                } else if (domain === 'yahoo.com') {
+                                                                    setFieldValue('imapHost', 'imap.mail.yahoo.com');
+                                                                } else if (domain === 'icloud.com') {
+                                                                    setFieldValue('imapHost', 'imap.mail.me.com');
+                                                                }
+                                                            }}
+                                                        />
+                                                        <ErrorMessage name="email" component="div" className="text-red-400 text-xs mt-1" />
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4 mt-4">
+                                                    <div>
+                                                        <label htmlFor="password" className="block text-sm font-semibold text-slate-300 mb-2">
+                                                            System Login Password *
+                                                        </label>
+                                                        <Field
+                                                            id="password"
+                                                            name="password"
+                                                            type="password"
+                                                            className={`w-full px-4 py-2 bg-slate-700 border ${errors.password && touched.password ? 'border-red-500' : 'border-slate-600'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                                                            placeholder="••••••••"
+                                                        />
+                                                        <ErrorMessage name="password" component="div" className="text-red-400 text-xs mt-1" />
+                                                        <p className="text-xs text-slate-400 mt-1">Min 6 characters (for logging into this application)</p>
+                                                    </div>
+                                                    <div>
+                                                        <label htmlFor="role" className="block text-sm font-semibold text-slate-300 mb-2">
+                                                            Role *
+                                                        </label>
+                                                        <Field
+                                                            id="role"
+                                                            name="role"
+                                                            as="select"
+                                                            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                        >
+                                                            <option value="user">User</option>
+                                                            <option value="admin">Admin</option>
+                                                        </Field>
+                                                        <ErrorMessage name="role" component="div" className="text-red-400 text-xs mt-1" />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Section 2: IMAP Configuration - Only for regular users */}
+                                            {values.role === 'user' && (
+                                                <div className="p-4 bg-slate-800/50 rounded-lg border border-red-900/30 bg-red-900/5">
+                                                    <h5 className="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">📧 IMAP Email Configuration <span className="text-red-400">(Required for Users)</span></h5>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <label htmlFor="imapHost" className="block text-sm font-semibold text-slate-300 mb-2">
+                                                                IMAP Host *
+                                                            </label>
+                                                            <Field
+                                                                id="imapHost"
+                                                                name="imapHost"
+                                                                type="text"
+                                                                className={`w-full px-4 py-2 bg-slate-700 border ${errors.imapHost && touched.imapHost ? 'border-red-500' : 'border-slate-600'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                                                                placeholder="imap.gmail.com"
+                                                            />
+                                                            <ErrorMessage name="imapHost" component="div" className="text-red-400 text-xs mt-1" />
+                                                            <p className="text-xs text-slate-400 mt-1">Auto-detected based on email domain</p>
+                                                        </div>
+                                                        <div>
+                                                            <label htmlFor="imapPort" className="block text-sm font-semibold text-slate-300 mb-2">
+                                                                IMAP Port *
+                                                            </label>
+                                                            <Field
+                                                                id="imapPort"
+                                                                name="imapPort"
+                                                                type="number"
+                                                                className={`w-full px-4 py-2 bg-slate-700 border ${errors.imapPort && touched.imapPort ? 'border-red-500' : 'border-slate-600'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                                                                placeholder="993"
+                                                            />
+                                                            <ErrorMessage name="imapPort" component="div" className="text-red-400 text-xs mt-1" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="mt-4">
+                                                        <label htmlFor="imapPassword" className="block text-sm font-semibold text-slate-300 mb-2">
+                                                            IMAP Password *
+                                                        </label>
+                                                        <Field
+                                                            id="imapPassword"
+                                                            name="imapPassword"
+                                                            type="password"
+                                                            className={`w-full px-4 py-2 bg-slate-700 border ${errors.imapPassword && touched.imapPassword ? 'border-red-500' : 'border-slate-600'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                                                            placeholder="••••••••"
+                                                        />
+                                                        <ErrorMessage name="imapPassword" component="div" className="text-red-400 text-xs mt-1" />
+                                                        <p className="text-xs text-slate-400 mt-1">Email account password (for Gmail, use App Password)</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Info box - different for admin vs user */}
+                                            {values.role === 'admin' ? (
+                                                <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg text-purple-200 text-sm">
+                                                    <strong>👑 Admin Account:</strong>
+                                                    <ul className="mt-2 ml-4 list-disc space-y-1">
+                                                        <li>No IMAP configuration needed</li>
+                                                        <li>Admin can manage all users and settings</li>
+                                                        <li>No email fetching for admin accounts</li>
+                                                    </ul>
+                                                </div>
+                                            ) : (
+                                                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-200 text-sm">
+                                                    <strong>✅ What happens after creating:</strong>
+                                                    <ul className="mt-2 ml-4 list-disc space-y-1">
+                                                        <li>User account created instantly</li>
+                                                        <li>IMAP account configured automatically</li>
+                                                        <li>Emails fetched in background (no user login needed!)</li>
+                                                        <li>AI classification applied automatically</li>
+                                                        <li>User can login and see all emails ready</li>
+                                                    </ul>
+                                                </div>
+                                            )}
+
+                                            <button
+                                                type="submit"
+                                                disabled={isSubmitting}
+                                                className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {isSubmitting ? 'Creating...' : (values.role === 'admin' ? '✅ Create Admin User' : '✅ Create User & Start Email Sync')}
+                                            </button>
+                                        </Form>
                                     </div>
                                 )}
-
-                                <form onSubmit={handleCreateUser} className="space-y-4">
-                                    {/* Section 1: User Info */}
-                                    <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-600">
-                                        <h5 className="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">👤 User Information</h5>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-300 mb-2">
-                                                    Name *
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={createUserData.name}
-                                                    onChange={(e) => setCreateUserData({ ...createUserData, name: e.target.value })}
-                                                    required
-                                                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    placeholder="John Doe"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-300 mb-2">
-                                                    Email * <span className="text-xs text-slate-400">(Used for both system login & IMAP)</span>
-                                                </label>
-                                                <input
-                                                    type="email"
-                                                    value={createUserData.email}
-                                                    onChange={(e) => {
-                                                        const email = e.target.value;
-                                                        const domain = email.split('@')[1];
-                                                        let imapHost = createUserData.imapHost;
-
-                                                        // Auto-detect IMAP host based on email domain
-                                                        if (domain === 'gmail.com') imapHost = 'imap.gmail.com';
-                                                        else if (domain === 'outlook.com' || domain === 'hotmail.com') imapHost = 'outlook.office365.com';
-                                                        else if (domain === 'yahoo.com') imapHost = 'imap.mail.yahoo.com';
-                                                        else if (domain === 'icloud.com') imapHost = 'imap.mail.me.com';
-
-                                                        setCreateUserData({ ...createUserData, email, imapHost });
-                                                    }}
-                                                    required
-                                                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    placeholder="user@example.com"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4 mt-4">
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-300 mb-2">
-                                                    System Login Password *
-                                                </label>
-                                                <input
-                                                    type="password"
-                                                    value={createUserData.password}
-                                                    onChange={(e) => setCreateUserData({ ...createUserData, password: e.target.value })}
-                                                    required
-                                                    minLength={6}
-                                                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    placeholder="••••••••"
-                                                />
-                                                <p className="text-xs text-slate-400 mt-1">Min 6 characters (for logging into this application)</p>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-300 mb-2">
-                                                    Role *
-                                                </label>
-                                                <select
-                                                    value={createUserData.role}
-                                                    onChange={(e) => setCreateUserData({ ...createUserData, role: e.target.value })}
-                                                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                >
-                                                    <option value="user">User</option>
-                                                    <option value="admin">Admin</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Section 2: IMAP Configuration - Only for regular users */}
-                                    {createUserData.role === 'user' && (
-                                    <div className="p-4 bg-slate-800/50 rounded-lg border border-red-900/30 bg-red-900/5">
-                                        <h5 className="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">📧 IMAP Email Configuration <span className="text-red-400">(Required for Users)</span></h5>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-300 mb-2">
-                                                    IMAP Host *
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={createUserData.imapHost}
-                                                    onChange={(e) => setCreateUserData({ ...createUserData, imapHost: e.target.value })}
-                                                    required={createUserData.role === 'user'}
-                                                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    placeholder="imap.gmail.com"
-                                                />
-                                                <p className="text-xs text-slate-400 mt-1">Auto-detected based on email domain</p>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-300 mb-2">
-                                                    IMAP Port *
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    value={createUserData.imapPort}
-                                                    onChange={(e) => setCreateUserData({ ...createUserData, imapPort: parseInt(e.target.value) })}
-                                                    required={createUserData.role === 'user'}
-                                                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    placeholder="993"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="mt-4">
-                                            <label className="block text-sm font-semibold text-slate-300 mb-2">
-                                                IMAP Password *
-                                            </label>
-                                            <input
-                                                type="password"
-                                                value={createUserData.imapPassword}
-                                                onChange={(e) => setCreateUserData({ ...createUserData, imapPassword: e.target.value })}
-                                                required
-                                                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                placeholder="••••••••"
-                                            />
-                                            <p className="text-xs text-slate-400 mt-1">Email account password (for Gmail, use App Password)</p>
-                                        </div>
-                                    </div>
-                                    )}
-
-                                    {/* Info box - different for admin vs user */}
-                                    {createUserData.role === 'admin' ? (
-                                    <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg text-purple-200 text-sm">
-                                        <strong>👑 Admin Account:</strong>
-                                        <ul className="mt-2 ml-4 list-disc space-y-1">
-                                            <li>No IMAP configuration needed</li>
-                                            <li>Admin can manage all users and settings</li>
-                                            <li>No email fetching for admin accounts</li>
-                                        </ul>
-                                    </div>
-                                    ) : (
-                                    <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-200 text-sm">
-                                        <strong>✅ What happens after creating:</strong>
-                                        <ul className="mt-2 ml-4 list-disc space-y-1">
-                                            <li>User account created instantly</li>
-                                            <li>IMAP account configured automatically</li>
-                                            <li>Emails fetched in background (no user login needed!)</li>
-                                            <li>AI classification applied automatically</li>
-                                            <li>User can login and see all emails ready</li>
-                                        </ul>
-                                    </div>
-                                    )}
-
-                                    <button
-                                        type="submit"
-                                        className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition"
-                                    >
-                                        {createUserData.role === 'admin' ? '✅ Create Admin User' : '✅ Create User & Start Email Sync'}
-                                    </button>
-                                </form>
-                            </div>
-                        )}
-
-                        {/* Success Message */}
-                        {createUserSuccess && (
-                            <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-200 text-sm">
-                                {createUserSuccess}
-                            </div>
+                            </Formik>
                         )}
 
                         {loading ? (
@@ -469,8 +463,8 @@ const AdminDashboard = () => {
                                                 <td className="py-4 text-slate-300">{userData.email}</td>
                                                 <td className="py-4">
                                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${userData.role === 'admin'
-                                                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                                            : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                                        : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                                                         }`}>
                                                         {userData.role.toUpperCase()}
                                                     </span>
@@ -479,12 +473,26 @@ const AdminDashboard = () => {
                                                     {new Date(userData.created_at).toLocaleDateString()}
                                                 </td>
                                                 <td className="py-4 text-right">
-                                                    <button
-                                                        onClick={() => handleSelectUser(userData)}
-                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-semibold"
-                                                    >
-                                                        📧 Manage Email Accounts
-                                                    </button>
+                                                    <div className="flex gap-2 justify-end">
+                                                        <button
+                                                            onClick={() => navigate(`/admin/users/${userData.id}/emails`)}
+                                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-semibold"
+                                                        >
+                                                            📧 View Emails
+                                                        </button>
+                                                        <button
+                                                            onClick={() => navigate(`/admin/users/${userData.id}/suggestions`)}
+                                                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition text-sm font-semibold"
+                                                        >
+                                                            🤖 AI Suggestions
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleSelectUser(userData)}
+                                                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-sm font-semibold"
+                                                        >
+                                                            ⚙️ Manage Accounts
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

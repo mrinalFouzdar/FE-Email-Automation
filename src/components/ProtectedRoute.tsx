@@ -3,9 +3,11 @@ import { Navigate } from 'react-router-dom';
 interface ProtectedRouteProps {
     children: React.ReactNode;
     requiredRole?: 'admin' | 'user';
+    excludedRole?: 'admin' | 'user';
+    redirectTo?: string;
 }
 
-const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, requiredRole, excludedRole, redirectTo }: ProtectedRouteProps) => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
 
@@ -14,19 +16,23 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         return <Navigate to="/login" replace />;
     }
 
-    // Check role if required
-    if (requiredRole) {
-        try {
-            const user = JSON.parse(userStr);
+    try {
+        const user = JSON.parse(userStr);
 
-            if (user.role !== requiredRole) {
-                // Redirect to unauthorized page or dashboard
-                return <Navigate to="/unauthorized" replace />;
-            }
-        } catch (error) {
-            console.error('Error parsing user data:', error);
-            return <Navigate to="/login" replace />;
+        // Check if user's role is excluded from this route
+        if (excludedRole && user.role === excludedRole) {
+            const defaultRedirect = excludedRole === 'admin' ? '/admin' : '/';
+            return <Navigate to={redirectTo || defaultRedirect} replace />;
         }
+
+        // Check role if required
+        if (requiredRole && user.role !== requiredRole) {
+            // Redirect to unauthorized page or dashboard
+            return <Navigate to="/unauthorized" replace />;
+        }
+    } catch (error) {
+        console.error('Error parsing user data:', error);
+        return <Navigate to="/login" replace />;
     }
 
     return <>{children}</>;

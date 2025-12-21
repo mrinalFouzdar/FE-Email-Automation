@@ -10,6 +10,7 @@ class EmailService {
     if (filters?.is_unread !== undefined) params.append('is_unread', filters.is_unread.toString());
     if (filters?.sender) params.append('sender', filters.sender);
     if (filters?.search) params.append('search', filters.search);
+    if (filters?.userId) params.append('userId', filters.userId.toString());
 
     const url = `/emails${params.toString() ? `?${params.toString()}` : ''}`;
     return apiClient.get<PaginatedResponse<Email[]>>(url);

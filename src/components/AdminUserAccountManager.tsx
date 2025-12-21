@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import api from '../services/api';
 
@@ -39,6 +40,7 @@ const detectImapConfig = (email: string) => {
 };
 
 export default function AdminUserAccountManager({ user, onClose }: AdminUserAccountManagerProps) {
+    const navigate = useNavigate();
     const [accounts, setAccounts] = useState<EmailAccount[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAddForm, setShowAddForm] = useState(false);
@@ -156,12 +158,20 @@ export default function AdminUserAccountManager({ user, onClose }: AdminUserAcco
                             User: <span className="font-semibold text-slate-300">{user.name}</span> ({user.email})
                         </p>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"
-                    >
-                        ✕ Close
-                    </button>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => navigate(`/?userId=${user.id}`)}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center gap-2"
+                        >
+                            <span>📧</span> View Emails
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"
+                        >
+                            ✕ Close
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -396,20 +406,18 @@ export default function AdminUserAccountManager({ user, onClose }: AdminUserAcco
                                                     <h4 className="text-lg font-semibold text-white">
                                                         {account.account_name}
                                                     </h4>
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                                        account.status === 'connected'
-                                                            ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                                                            : account.status === 'pending'
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${account.status === 'connected'
+                                                        ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                                                        : account.status === 'pending'
                                                             ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
                                                             : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                                                    }`}>
+                                                        }`}>
                                                         {account.status.toUpperCase()}
                                                     </span>
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                                        account.provider_type === 'gmail'
-                                                            ? 'bg-blue-500/20 text-blue-300'
-                                                            : 'bg-purple-500/20 text-purple-300'
-                                                    }`}>
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${account.provider_type === 'gmail'
+                                                        ? 'bg-blue-500/20 text-blue-300'
+                                                        : 'bg-purple-500/20 text-purple-300'
+                                                        }`}>
                                                         {account.provider_type.toUpperCase()}
                                                     </span>
                                                 </div>
