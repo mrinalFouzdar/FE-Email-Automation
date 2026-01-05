@@ -167,11 +167,10 @@ const UsersPage = () => {
                 <button
                   key={role}
                   onClick={() => setRoleFilter(role as any)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    roleFilter === role
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${roleFilter === role
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                 >
                   {role.charAt(0).toUpperCase() + role.slice(1)}
                 </button>
@@ -238,11 +237,10 @@ const UsersPage = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.role === 'admin'
-                            ? 'bg-purple-100 text-purple-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
+                        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'admin'
+                          ? 'bg-purple-100 text-purple-800'
+                          : 'bg-blue-100 text-blue-800'
+                          }`}
                       >
                         {user.role === 'admin' ? '👨‍💼 Admin' : '👤 User'}
                       </span>
@@ -250,38 +248,37 @@ const UsersPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(user.created_at)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => setChatUser(user)}
-                          className="px-3 py-1 bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 rounded-lg hover:from-indigo-200 hover:to-purple-200 transition-all font-semibold shadow-sm"
-                          title="Chat with AI about this user's emails"
-                        >
-                          💬 Chat
-                        </button>
-                        <button
-                          onClick={() => navigate(`/admin/users/${user.id}/emails`)}
-                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                          title="View Emails"
-                        >
-                          📧 Emails
-                        </button>
-                        <button
-                          onClick={() => navigate(`/admin/users/${user.id}/suggestions`)}
-                          className="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-                          title="View AI Suggestions"
-                        >
-                          🤖 AI
-                        </button>
-                        <button
-                          onClick={() => setSelectedUser(user)}
-                          className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
-                          title="Manage Accounts"
-                        >
-                          ⚙️ Accounts
-                        </button>
-                      </div>
-                    </td>
+                    {
+                      user.role !== 'admin' && (
+
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-2">
+                            <button
+                              onClick={() => setChatUser(user)}
+                              className="px-3 py-1 bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 rounded-lg hover:from-indigo-200 hover:to-purple-200 transition-all font-semibold shadow-sm"
+                              title="Chat with AI about this user's emails"
+                            >
+                              💬 Chat
+                            </button>
+                            <button
+                              onClick={() => navigate(`/admin/users/${user.id}/emails`)}
+                              className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                              title="View Emails"
+                            >
+                              📧 Emails
+                            </button>
+                            <button
+                              onClick={() => navigate(`/admin/users/${user.id}/suggestions`)}
+                              className="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                              title="View AI Suggestions"
+                            >
+                              🤖 AI
+                            </button>
+
+                          </div>
+                        </td>
+                      )
+                    }
                   </tr>
                 ))
               )}

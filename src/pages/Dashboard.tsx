@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { apiClient as api } from '../services/api.client';
 import LabelSuggestionCard from '../components/LabelSuggestionCard';
 import EmailBadges from '../components/EmailBadges';
+import EmailAccountManager from '../components/EmailAccountManager';
 import { Email, EmailMeta } from '../types/email.types';
 
 interface Reminder {
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [showAccountManager, setShowAccountManager] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const userIdParam = searchParams.get('userId');
@@ -160,7 +162,7 @@ export default function Dashboard() {
               <h1 className="text-5xl font-bold mb-3 flex items-center gap-4">
                 <span className="text-6xl drop-shadow-lg">📧</span> Email RAG System
               </h1>
-              <p className="text-blue-100 text-lg font-medium">Smart Email Management with AI-Powered Insights & Analytics</p>
+              <p className="text-blue-100 text-lg font-medium">Smart Email Management with AI-Powered Insights</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
@@ -181,6 +183,12 @@ export default function Dashboard() {
                   🔧 Admin Dashboard
                 </button>
               )}
+              <button
+                onClick={() => setShowAccountManager(true)}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 backdrop-blur-sm rounded-xl font-bold transition-all duration-300 transform hover:scale-105"
+              >
+                ⚙️ Accounts
+              </button>
               <button
                 onClick={handleLogout}
                 className="px-6 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl font-bold transition-all duration-300 transform hover:scale-105"

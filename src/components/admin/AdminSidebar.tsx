@@ -43,11 +43,6 @@ const AdminSidebar = ({ userName, userRole }: SidebarProps) => {
       icon: '📈',
       path: '/admin/stats',
     },
-    {
-      title: 'Token Analytics',
-      icon: '💰',
-      path: '/admin/analytics',
-    },
   ].filter(item => {
     // Hide User Management links for 'admin' role (if that is the requirement)
     // The user requested: "no need to show ... for user role type admin"

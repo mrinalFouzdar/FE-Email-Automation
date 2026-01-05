@@ -60,9 +60,6 @@ const AppRouter = () => {
 
                     {/* System Stats */}
                     <Route path="stats" element={<AdminDashboard />} />
-
-                    {/* Token Analytics (future page) */}
-                    <Route path="analytics" element={<DashboardPage />} />
                 </Route>
 
                 {/* Catch all - redirect to home */}

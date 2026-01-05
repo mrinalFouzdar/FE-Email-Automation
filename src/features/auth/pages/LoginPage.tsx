@@ -60,7 +60,6 @@ const LoginPage: React.FC = () => {
                             { icon: '🤖', title: 'Smart Classification', desc: 'AI-driven email categorization' },
                             { icon: '⚡', title: 'Urgent Detection', desc: 'Never miss critical updates' },
                             { icon: '📝', title: 'MoM Tracking', desc: 'Automated meeting minutes' },
-                            { icon: '📊', title: 'Analytics', desc: 'Insightful email statistics' },
                         ].map((feature, idx) => (
                             <div key={idx} className="p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
                                 <div className="text-2xl mb-2">{feature.icon}</div>
