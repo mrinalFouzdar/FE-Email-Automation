@@ -48,13 +48,19 @@ const AdminSidebar = ({ userName, userRole }: SidebarProps) => {
       icon: '💰',
       path: '/admin/analytics',
     },
-  ];
+  ].filter(item => {
+    // Hide User Management links for 'admin' role (if that is the requirement)
+    // The user requested: "no need to show ... for user role type admin"
+    if (userRole === 'admin' && (item.title === 'Users' || item.title === 'Create User')) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div
-      className={`${
-        isCollapsed ? 'w-20' : 'w-64'
-      } min-h-screen bg-gradient-to-b from-indigo-900 via-purple-900 to-pink-900 text-white transition-all duration-300 ease-in-out flex flex-col shadow-2xl`}
+      className={`${isCollapsed ? 'w-20' : 'w-64'
+        } min-h-screen bg-gradient-to-b from-indigo-900 via-purple-900 to-pink-900 text-white transition-all duration-300 ease-in-out flex flex-col shadow-2xl`}
     >
       {/* Header */}
       <div className="p-4 border-b border-white/20">
@@ -103,10 +109,9 @@ const AdminSidebar = ({ userName, userRole }: SidebarProps) => {
             end={item.exact}
             title={isCollapsed ? item.title : ''}
             className={({ isActive }) =>
-              `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                isActive
-                  ? 'bg-white/20 text-white shadow-lg scale-105'
-                  : 'hover:bg-white/10 text-white/80 hover:text-white'
+              `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
+                ? 'bg-white/20 text-white shadow-lg scale-105'
+                : 'hover:bg-white/10 text-white/80 hover:text-white'
               } ${isCollapsed ? 'justify-center' : ''}`
             }
           >
@@ -123,9 +128,8 @@ const AdminSidebar = ({ userName, userRole }: SidebarProps) => {
         <button
           onClick={() => navigate('/')}
           title={isCollapsed ? 'User Dashboard' : ''}
-          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-all duration-200 text-white/80 hover:text-white ${
-            isCollapsed ? 'justify-center' : ''
-          }`}
+          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-all duration-200 text-white/80 hover:text-white ${isCollapsed ? 'justify-center' : ''
+            }`}
         >
           <span className="text-2xl">🏠</span>
           {!isCollapsed && <span className="font-medium text-sm">User Dashboard</span>}
@@ -134,9 +138,8 @@ const AdminSidebar = ({ userName, userRole }: SidebarProps) => {
         <button
           onClick={handleLogout}
           title={isCollapsed ? 'Logout' : ''}
-          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-red-500/20 transition-all duration-200 text-white/80 hover:text-white ${
-            isCollapsed ? 'justify-center' : ''
-          }`}
+          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-red-500/20 transition-all duration-200 text-white/80 hover:text-white ${isCollapsed ? 'justify-center' : ''
+            }`}
         >
           <span className="text-2xl">🚪</span>
           {!isCollapsed && <span className="font-medium text-sm">Logout</span>}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
 import AdminUserAccountManager from '../../components/AdminUserAccountManager';
+import ChatModal from '../../components/ChatModal';
 
 interface User {
   id: number;
@@ -20,6 +21,7 @@ const UsersPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [chatUser, setChatUser] = useState<User | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -251,6 +253,13 @@ const UsersPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <button
+                          onClick={() => setChatUser(user)}
+                          className="px-3 py-1 bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 rounded-lg hover:from-indigo-200 hover:to-purple-200 transition-all font-semibold shadow-sm"
+                          title="Chat with AI about this user's emails"
+                        >
+                          💬 Chat
+                        </button>
+                        <button
                           onClick={() => navigate(`/admin/users/${user.id}/emails`)}
                           className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
                           title="View Emails"
@@ -280,6 +289,15 @@ const UsersPage = () => {
           </table>
         </div>
       </div>
+
+      {/* Chat Modal */}
+      {chatUser && (
+        <ChatModal
+          userId={chatUser.id}
+          userName={chatUser.name}
+          onClose={() => setChatUser(null)}
+        />
+      )}
 
       {/* Account Manager Modal */}
       {selectedUser && (

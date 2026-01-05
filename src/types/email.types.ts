@@ -11,6 +11,9 @@ export interface Email {
   id: number;
   gmail_id: string;
   thread_id?: string;
+  message_id?: string;
+  imap_uid?: number;
+  imap_mailbox?: string;
   subject: string;
   sender_email: string;
   to_recipients: string[];

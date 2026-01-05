@@ -3,15 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import { toast } from 'react-toastify';
 import api from '../services/api';
-import LabelApprovalCard from '../components/LabelApprovalCard';
+import LabelSuggestionCard from '../components/LabelSuggestionCard';
 import AdminUserAccountManager from '../components/AdminUserAccountManager';
 import { createUserSchema } from '../shared/schemas/admin.schema';
 
-interface PendingLabel {
+interface PendingLabelSuggestion {
     id: number;
-    name: string;
-    color: string;
-    email_count: number;
+    email_id: number;
+    user_id: number;
+    suggested_label_name: string;
+    suggested_by: string;
+    confidence_score: number;
+    reasoning: string;
+    status: string;
+    created_at: string;
+    email_subject: string;
+    email_sender: string;
+    email_body: string;
+    user_email: string;
 }
 
 interface User {
@@ -40,7 +49,7 @@ const AdminDashboard = () => {
     const [activeTab, setActiveTab] = useState<'users' | 'labels' | 'stats'>('users');
     const [users, setUsers] = useState<User[]>([]);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    const [pendingLabels, setPendingLabels] = useState<PendingLabel[]>([]);
+    const [pendingLabels, setPendingLabels] = useState<PendingLabelSuggestion[]>([]);
     const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [showCreateUserForm, setShowCreateUserForm] = useState(false);
@@ -84,10 +93,11 @@ const AdminDashboard = () => {
 
     const fetchPendingLabels = async () => {
         try {
-            const response = await api.get('/labels/pending');
-            setPendingLabels(response.data.pending || []);
+            // Fetch ALL pending label suggestions (admin view - all users)
+            const response = await api.get('/labels/pending-suggestions');
+            setPendingLabels(response.data.suggestions || []);
         } catch (error) {
-            console.error('Failed to fetch pending labels:', error);
+            console.error('Failed to fetch pending label suggestions:', error);
         }
     };
 
@@ -188,7 +198,7 @@ const AdminDashboard = () => {
                     >
                         👥 Users Management
                     </button>
-                    <button
+                    {/* <button
                         className={`px-6 py-3 rounded-xl text-base font-bold transition-all duration-300 ${activeTab === 'labels'
                             ? 'bg-purple-600 text-white shadow-lg'
                             : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
@@ -196,7 +206,7 @@ const AdminDashboard = () => {
                         onClick={() => setActiveTab('labels')}
                     >
                         🏷️ Label Approvals {pendingLabels.length > 0 && `(${pendingLabels.length})`}
-                    </button>
+                    </button> */}
                     <button
                         className={`px-6 py-3 rounded-xl text-base font-bold transition-all duration-300 ${activeTab === 'stats'
                             ? 'bg-green-600 text-white shadow-lg'
@@ -507,9 +517,14 @@ const AdminDashboard = () => {
                 {activeTab === 'labels' && (
                     <div className="bg-slate-800/50 backdrop-blur-xl rounded-xl p-8 border border-slate-700/50">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-2xl font-semibold text-white flex items-center gap-3">
-                                <span className="text-3xl">🏷️</span> Pending Label Approvals
-                            </h3>
+                            <div>
+                                <h3 className="text-2xl font-semibold text-white flex items-center gap-3">
+                                    <span className="text-3xl">🏷️</span> Label Approvals (All Users)
+                                </h3>
+                                <p className="text-slate-400 text-sm mt-1">
+                                    Review AI-suggested labels from all users
+                                </p>
+                            </div>
                             <button
                                 onClick={fetchPendingLabels}
                                 className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition"
@@ -521,18 +536,31 @@ const AdminDashboard = () => {
                         {pendingLabels.length === 0 ? (
                             <div className="text-center py-12 px-5 text-slate-400">
                                 <span className="text-6xl mb-4 block">✅</span>
-                                <p className="text-lg font-medium">No pending labels</p>
-                                <p className="text-sm mt-2">All AI-suggested labels have been reviewed</p>
+                                <p className="text-lg font-medium">No pending label suggestions</p>
+                                <p className="text-sm mt-2">All AI-suggested labels have been reviewed by users</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {pendingLabels.map((label) => (
-                                    <LabelApprovalCard
-                                        key={label.id}
-                                        label={label}
-                                        onApprove={fetchPendingLabels}
-                                        onReject={fetchPendingLabels}
-                                    />
+                                {pendingLabels.map((suggestion) => (
+                                    <div key={suggestion.id} className="relative">
+                                        {/* User Badge */}
+                                        <div className="absolute -top-2 -right-2 z-10 px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-full shadow-lg">
+                                            👤 {suggestion.user_email}
+                                        </div>
+                                        <LabelSuggestionCard
+                                            suggestion={{
+                                                id: suggestion.id,
+                                                email_id: suggestion.email_id,
+                                                suggested_label_name: suggestion.suggested_label_name,
+                                                confidence_score: suggestion.confidence_score,
+                                                reasoning: suggestion.reasoning,
+                                                subject: suggestion.email_subject,
+                                                sender_email: suggestion.email_sender,
+                                                received_at: suggestion.created_at
+                                            }}
+                                            onProcess={fetchPendingLabels}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                         )}
