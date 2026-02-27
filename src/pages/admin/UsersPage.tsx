@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
 import AdminUserAccountManager from '../../components/AdminUserAccountManager';
-import ChatModal from '../../components/ChatModal';
 
 interface User {
   id: number;
@@ -21,7 +20,8 @@ const UsersPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [chatUser, setChatUser] = useState<User | null>(null);
+  const [aiPromptUser, setAiPromptUser] = useState<User | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -254,21 +254,28 @@ const UsersPage = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end space-x-2">
                             <button
-                              onClick={() => setChatUser(user)}
+                              onClick={() => navigate(`/admin/users/${user.id}/emails?tab=all`)}
+                              className="px-3 py-1 bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 rounded-lg hover:from-indigo-200 hover:to-purple-200 transition-all font-semibold shadow-sm"
+                              title="Chat with AI about this user's emails"
+                            >
+                              📧 Email Details
+                            </button>
+                            <button
+                              onClick={() => navigate(`/admin/users/${user.id}/emails?tab=chat`)}
                               className="px-3 py-1 bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 rounded-lg hover:from-indigo-200 hover:to-purple-200 transition-all font-semibold shadow-sm"
                               title="Chat with AI about this user's emails"
                             >
                               💬 Chat
                             </button>
                             <button
-                              onClick={() => navigate(`/admin/users/${user.id}/emails`)}
+                              onClick={() => navigate(`/admin/users/${user.id}/emails?tab=ai`)}
                               className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                              title="View Emails"
+                              title="View AI Suggested Labels"
                             >
-                              📧 Emails
+                              🏷️ AI Suggested Labels
                             </button>
                             <button
-                              onClick={() => navigate(`/admin/users/${user.id}/suggestions`)}
+                              onClick={() => setAiPromptUser(user)}
                               className="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
                               title="View AI Suggestions"
                             >
@@ -287,13 +294,51 @@ const UsersPage = () => {
         </div>
       </div>
 
-      {/* Chat Modal */}
-      {chatUser && (
-        <ChatModal
-          userId={chatUser.id}
-          userName={chatUser.name}
-          onClose={() => setChatUser(null)}
-        />
+      {/* AI Suggestions – wait for prompt modal */}
+      {aiPromptUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">🤖 AI Suggestions</h3>
+              <button
+                onClick={() => { setAiPromptUser(null); setAiPrompt(''); }}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-gray-600">
+              Enter your prompt for <span className="font-medium text-gray-900">{aiPromptUser.name}</span>’s suggestions (optional).
+            </p>
+            <textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="e.g. Focus on project labels, or leave blank to view all..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+              rows={3}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setAiPromptUser(null); setAiPrompt(''); }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  navigate(`/admin/users/${aiPromptUser.id}/suggestions`, { state: { prompt: aiPrompt || undefined } });
+                  setAiPromptUser(null);
+                  setAiPrompt('');
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Account Manager Modal */}
@@ -309,3 +354,4 @@ const UsersPage = () => {
 };
 
 export default UsersPage;
+

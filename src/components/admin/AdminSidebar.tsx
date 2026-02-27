@@ -29,6 +29,11 @@ const AdminSidebar = ({ userName, userRole }: SidebarProps) => {
       path: '/admin/users',
     },
     {
+      title: 'All Emails',
+      icon: '✉️',
+      path: '/admin/emails',
+    },
+    {
       title: 'Create User',
       icon: '➕',
       path: '/admin/users/create',
@@ -37,6 +42,16 @@ const AdminSidebar = ({ userName, userRole }: SidebarProps) => {
       title: 'Label Approvals',
       icon: '🏷️',
       path: '/admin/labels',
+    },
+    {
+      title: 'Projects',
+      icon: '📁',
+      path: '/admin/projects',
+    },
+    {
+      title: 'Meetings',
+      icon: '📅',
+      path: '/admin/meetings',
     },
     {
       title: 'System Stats',
@@ -120,16 +135,6 @@ const AdminSidebar = ({ userName, userRole }: SidebarProps) => {
 
       {/* Footer Actions */}
       <div className="p-4 border-t border-white/20 space-y-2">
-        <button
-          onClick={() => navigate('/')}
-          title={isCollapsed ? 'User Dashboard' : ''}
-          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-all duration-200 text-white/80 hover:text-white ${isCollapsed ? 'justify-center' : ''
-            }`}
-        >
-          <span className="text-2xl">🏠</span>
-          {!isCollapsed && <span className="font-medium text-sm">User Dashboard</span>}
-        </button>
-
         <button
           onClick={handleLogout}
           title={isCollapsed ? 'Logout' : ''}

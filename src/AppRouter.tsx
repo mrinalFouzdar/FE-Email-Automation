@@ -10,8 +10,11 @@ import AdminLayout from './components/admin/AdminLayout';
 import DashboardPage from './pages/admin/DashboardPage';
 import UsersPage from './pages/admin/UsersPage';
 import CreateUserPage from './pages/admin/CreateUserPage';
+import AllEmailsPage from './pages/admin/AllEmailsPage';
+import UserEmailManagement from './pages/admin/UserEmailManagement';
+import ProjectManagement from './pages/admin/ProjectManagement';
+import MeetingDashboard from './pages/admin/MeetingDashboard';
 import UserLabelSuggestions from './pages/UserLabelSuggestions';
-import UserEmails from './pages/UserEmails';
 
 // Old Admin Dashboard (for backward compatibility during transition)
 import AdminDashboard from './pages/AdminDashboard';
@@ -52,8 +55,17 @@ const AppRouter = () => {
                     {/* User Management */}
                     <Route path="users" element={<UsersPage />} />
                     <Route path="users/create" element={<CreateUserPage />} />
-                    <Route path="users/:userId/emails" element={<UserEmails />} />
+                    <Route path="users/:userId/emails" element={<UserEmailManagement />} />
                     <Route path="users/:userId/suggestions" element={<UserLabelSuggestions />} />
+
+                    {/* Email Management */}
+                    <Route path="emails" element={<AllEmailsPage />} />
+
+                    {/* Project Management */}
+                    <Route path="projects" element={<ProjectManagement />} />
+
+                    {/* Meeting Tracker */}
+                    <Route path="meetings" element={<MeetingDashboard />} />
 
                     {/* Label Management */}
                     <Route path="labels" element={<AdminDashboard />} />

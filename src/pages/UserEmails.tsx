@@ -124,7 +124,7 @@ const UserEmails = () => {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                             <button
-                                onClick={() => navigate('/admin')}
+                                onClick={() => navigate('/admin/users')}
                                 className="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition"
                             >
                                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,10 +139,10 @@ const UserEmails = () => {
                             </div>
                         </div>
                         <button
-                            onClick={() => navigate('/admin')}
+                            onClick={() => navigate('/admin/users')}
                             className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"
                         >
-                            ← Back to Dashboard
+                            ← Back to Users
                         </button>
                     </div>
                 </div>
